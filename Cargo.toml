@@ -5,12 +5,4 @@ edition = "2024"
 
 [dependencies]
 inputbot = "0.6"
-windows = { 
-    version = "0.48", 
-    features = [
-        "Win32_UI_Input_Ime",
-        "Win32_UI_WindowsAndMessaging", 
-        "Win32_Foundation",
-        "Win32_Globalization"
-    ] 
-}
+windows = { version = "0.48", features = ["Win32_UI_Input_Ime", "Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_Globalization", "Win32_UI_TextServices"] }
