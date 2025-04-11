@@ -55,18 +55,26 @@
   - 易于维护和调试
   - 学习成本低
 
-2.3 前端文件结构
+### 2.3 文件结构
 ```plaintext
-src/
-├── index.html
-├── css/
-│   ├── main.css        # 主样式
-│   ├── components/     # 组件样式
-│   └── themes/         # 主题样式
-├── js/
-│   ├── main.js         # 入口文件
-│   ├── components/     # 自定义组件
-│   ├── utils/          # 工具函数
-│   └── charts/         # 图表配置
-└── assets/            # 静态资源
+keyboard-statistics/
+├── src/                    # 前端代码
+│   ├── css/               # CSS 样式
+│   │   ├── components/   # 组件样式
+│   │   ├── themes/      # 主题样式
+│   │   └── main.css     # 主样式文件
+│   ├── js/                # JavaScript 代码
+│   │   ├── components/   # 自定义组件
+│   │   ├── utils/       # 工具函数
+│   │   ├── charts/      # 图表配置
+│   │   └── main.js      # 主入口文件
+│   ├── assets/           # 静态资源
+│   └── index.html        # 主页面
+├── src-tauri/             # Rust 后端代码
+│   ├── src/              # Rust 源代码
+│   │   └── main.rs      # 主程序
+│   ├── Cargo.toml       # Rust 项目配置
+│   └── tauri.conf.json  # Tauri 配置
+├── package.json          # Node.js 项目配置
+└── README.md            # 项目说明
 ```

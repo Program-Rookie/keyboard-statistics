@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>键盘统计</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+    <div id="app">
+        <header>
+            <h1>键盘统计</h1>
+            <div class="controls">
+                <button id="startBtn">开始记录</button>
+                <button id="stopBtn">停止记录</button>
+                <button id="exportBtn">导出数据</button>
+            </div>
+        </header>
+
+        <main>
+            <section class="stats-overview">
+                <div class="stat-card">
+                    <h3>总按键次数</h3>
+                    <div id="totalKeystrokes">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>当前 KPM</h3>
+                    <div id="currentKpm">0</div>
+                </div>
+            </section>
+
+            <section class="charts">
+                <div id="keyDistribution" class="chart-container"></div>
+                <div id="timeDistribution" class="chart-container"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/main.js" type="module"></script>
+</body>
+
+</html>
