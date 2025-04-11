@@ -1,44 +1,139 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>键盘统计</title>
+    <title>键盘侠 - 键盘统计</title>
     <link rel="stylesheet" href="css/main.css">
 </head>
 
 <body>
-    <div id="app">
-        <header>
-            <h1>键盘统计</h1>
-            <div class="controls">
-                <button id="startBtn">开始记录</button>
-                <button id="stopBtn">停止记录</button>
-                <button id="exportBtn">导出数据</button>
+    <header>
+        <h1>键盘侠</h1>
+        <div class="controls">
+            <button id="startRecord" class="btn primary">开始记录</button>
+            <button id="stopRecord" class="btn secondary" disabled>停止记录</button>
+            <button id="settingsButton" class="btn secondary">设置</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="stats">
+            <div class="stat-card">
+                <h3>今日总按键</h3>
+                <p id="totalKeysToday">0</p>
             </div>
-        </header>
+            <div class="stat-card">
+                <h3>本周总按键</h3>
+                <p id="totalKeysWeek">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>本月总按键</h3>
+                <p id="totalKeysMonth">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>累计总按键</h3>
+                <p id="totalKeysAll">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>当前 KPM</h3>
+                <p id="currentKPM">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>记录状态</h3>
+                <p id="recordingStatus" style="font-size: 1.5rem;">已停止</p>
+            </div>
+        </section>
 
-        <main>
-            <section class="stats-overview">
-                <div class="stat-card">
-                    <h3>总按键次数</h3>
-                    <div id="totalKeystrokes">0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>当前 KPM</h3>
-                    <div id="currentKpm">0</div>
-                </div>
-            </section>
+        <section class="charts">
+            <div class="chart-container">
+                <h3>按键类型分布</h3>
+                <canvas id="keyTypeDistributionChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>按键时间分布 (小时)</h3>
+                <canvas id="keyTimeDistributionChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>按键星期分布</h3>
+                <canvas id="keyWeekdayDistributionChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>最活跃应用 Top 5</h3>
+                <canvas id="topAppsChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>最常用按键 Top 10</h3>
+                <canvas id="topKeysChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>健康风险评估 (示例)</h3>
+                <p id="healthRisk" style="padding: 20px; text-align: left;">根据您的按键频率和使用时长评估... (功能待完善)</p>
+            </div>
+        </section>
+    </main>
 
-            <section class="charts">
-                <div id="keyDistribution" class="chart-container"></div>
-                <div id="timeDistribution" class="chart-container"></div>
-            </section>
-        </main>
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>设置</h2>
+                <button class="close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <h3>数据管理</h3>
+                    <div class="form-group">
+                        <label for="exportFormat">导出格式:</label>
+                        <select id="exportFormat">
+                            <option value="json">JSON</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                        <button id="exportData" class="btn primary">导出数据</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="clearDataRangeStart">清除数据范围 (开始):</label>
+                        <input type="date" id="clearDataRangeStart">
+                    </div>
+                    <div class="form-group">
+                        <label for="clearDataRangeEnd">清除数据范围 (结束):</label>
+                        <input type="date" id="clearDataRangeEnd">
+                        <button id="clearDataRange" class="btn danger">清除范围内数据</button>
+                    </div>
+                    <div class="form-group">
+                        <label>清除所有数据:</label>
+                        <button id="clearAllData" class="btn danger">清除所有数据</button>
+                        <p style="font-size: 0.8rem; color: var(--text-muted-color); margin-top: 5px;">警告：此操作不可逆！</p>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3>通用设置 (待实现)</h3>
+                    <div class="form-group">
+                        <label class="form-check-label">
+                            <input type="checkbox" id="startOnLogin"> 开机自启
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="themeSelect">主题:</label>
+                        <select id="themeSelect" disabled>
+                            <option>系统默认</option>
+                            <option>浅色</option>
+                            <option>深色</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3>关于</h3>
+                    <p>版本: 1.0.0 (Alpha)</p>
+                    <p>作者: [Your Name/AI]</p>
+                    <p><a href="#" target="_blank">GitHub</a> | <a href="#" target="_blank">问题反馈</a></p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script src="js/main.js" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/main.js"></script>
 </body>
 
 </html>

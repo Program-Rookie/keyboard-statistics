@@ -17,9 +17,9 @@
    - [X] 测试项目启动
 1. 核心功能实现
 
-   - [ ] 键盘事件监听模块 (keyboard.rs)
-   - [ ] 数据库操作模块 (database.rs)
-   - [ ] 数据分析模块 (analyzer.rs)
+   - [X] 键盘事件监听模块 (keyboard.rs)
+   - [X] 数据库操作模块 (database.rs)
+   - [X] 数据分析模块 (analyzer.rs)
 2. 前端界面实现
 
    - [ ] 主界面布局
