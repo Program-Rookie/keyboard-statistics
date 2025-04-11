@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/main.css">
 </head>
 
-<body>
+<body data-theme="light">
     <div class="app-container">
         <aside class="sidebar">
             <h1 class="logo">键盘侠</h1>
@@ -28,10 +28,12 @@
             <div class="sidebar-controls">
                 <button id="startRecord" class="btn primary">开始记录</button>
                 <button id="stopRecord" class="btn secondary" disabled>停止记录</button>
+                <button id="theme-toggle" class="btn">切换到深色模式</button>
             </div>
         </aside>
 
         <main class="main-content">
+            <div id="error-display" class="error-message" style="display: none;"></div>
             <!-- Dashboard Pane -->
             <section id="dashboard" class="content-pane active">
                 <h2>概览</h2>
@@ -163,9 +165,10 @@
                 <h2>健康洞察</h2>
                 <div class="settings-group">
                     <h3>风险评估</h3>
-                    <div id="healthRiskDisplay" class="health-assessment">
+                    <div id="health-assessment-result-display" class="health-assessment">
                         <p>请在"设置"中提供您的职业和平均使用时长，以获得更个性化的评估。</p>
-                        <p>当前评估（基于通用数据）：[评估结果区域]</p>
+                        <p>当前评估：<span id="health-risk-text">[评估结果区域]</span></p>
+                        <small><i>此评估仅为提示，非医疗建议。</i></small>
                     </div>
                 </div>
                 <div class="settings-group">
@@ -189,43 +192,31 @@
                             <input type="checkbox" id="startOnLogin">
                             <label for="startOnLogin">开机自启</label>
                         </div>
-                        <div class="form-group">
-                            <label for="themeSelect">主题:</label>
-                            <select id="themeSelect" disabled>
-                                 <option>系统默认</option>
-                                 <option>浅色</option>
-                                 <option>深色</option>
-                             </select>
-                        </div>
                     </div>
                     <div class="settings-group">
                         <h3>健康档案 (可选)</h3>
                         <div class="form-group">
-                            <label for="userProfession">职业:</label>
-                            <input type="text" id="userProfession" placeholder="例如: 程序员, 文字工作者"> </input>
+                            <label for="user-occupation">职业:</label>
+                            <input type="text" id="user-occupation" placeholder="例如: 程序员, 文字工作者"></input>
                         </div>
                         <div class="form-group">
-                            <label for="userDailyUse">平均每日电脑使用时长:</label>
-                            <select id="userDailyUse">
-                                 <option value="">未设置</option>
-                                 <option value="<2">少于2小时</option>
-                                 <option value="2-4">2-4小时</option>
-                                 <option value="4-6">4-6小时</option>
-                                 <option value="6-8">6-8小时</option>
-                                 <option value="8+">8小时以上</option>
-                             </select>
+                            <label for="user-daily-usage">平均每日电脑使用时长:</label>
+                            <select id="user-daily-usage">
+                                <option value="">未设置</option>
+                                <option value="<2">少于2小时</option>
+                                <option value="2-4">2-4小时</option>
+                                <option value="4-6">4-6小时</option>
+                                <option value="6-8">6-8小时</option>
+                                <option value="8+">8小时以上</option>
+                            </select>
                         </div>
-                        <button id="saveProfile" class="btn primary">保存档案</button>
+                        <button id="health-profile-btn" class="btn primary">获取/更新健康评估</button>
+                        <div id="health-assessment-result" class="assessment-result-area"></div>
                     </div>
                     <div class="settings-group">
                         <h3>数据管理</h3>
                         <div class="form-group">
-                            <label for="exportFormat">导出格式:</label>
-                            <select id="exportFormat">
-                                 <option value="json">JSON</option>
-                                 <option value="csv">CSV</option>
-                             </select>
-                            <button id="exportData" class="btn secondary">导出数据</button>
+                            <button id="export-data-btn" class="btn secondary">导出数据 (JSON)</button>
                         </div>
                         <div class="form-group date-range">
                             <label>清除范围数据:</label>
@@ -234,13 +225,23 @@
                                 <span>到</span>
                                 <input type="date" id="clearDataRangeEnd" title="结束日期">
                             </div>
-                            <button id="clearDataRange" class="btn danger">清除范围内数据</button>
+                            <button id="clear-range-btn" class="btn danger">清除范围内数据</button>
                         </div>
                         <div class="form-group danger-zone">
                             <label>清除所有数据:</label>
-                            <button id="clearAllData" class="btn danger">清除所有记录</button>
+                            <button id="clear-data-btn" class="btn danger">清除所有记录</button>
                             <p class="warning-text">警告：此操作不可逆！</p>
                         </div>
+                    </div>
+                    <div class="settings-group">
+                        <h3>AI 分析</h3>
+                        <button id="ai-analysis-btn" class="btn">获取 AI 分析指导</button>
+                    </div>
+                    <div class="settings-group">
+                        <h3>记录控制 (高级)</h3>
+                        <button id="toggle-recording-btn" class="btn warning">暂停记录</button>
+                        <span id="recording-status-indicator" style="margin-left: 10px; font-weight: bold;">正在记录</span>
+                        <p class="warning-text">暂停后可恢复。</p>
                     </div>
                     <div class="settings-group">
                         <h3>关于</h3>
@@ -255,9 +256,14 @@
 
     <!-- Status Bar -->
     <footer class="status-bar">
-        <div id="statusIndicator">状态: <span class="status-text">已停止</span></div>
-        <!-- Pause/Resume can be added here if needed -->
-        <!-- <button id="pauseResumeButton" class="btn mini-btn">暂停</button> -->
+        <div id="statusIndicator" class="status-indicator recording">
+            <span class="indicator-light"></span>
+            <span class="status-text">记录中</span>
+        </div>
+        <span>|</span>
+        <div>总按键: <span id="footerTotalKeys">0</span></div>
+        <span>|</span>
+        <div>KPM: <span id="footerKPM">0</span></div>
     </footer>
 
     <!-- Settings Modal (Keep for now, maybe remove if settings pane is preferred) -->
@@ -266,7 +272,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <!-- Adapter for time scale -->
-    <script src="js/main.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 
 </html>

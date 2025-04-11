@@ -190,7 +190,7 @@ h2 {
 }
 
 .btn.primary:hover:not(:disabled) {
-    background-color: var(--primary-color-hover);
+    filter: brightness(90%);
 }
 
 .btn.secondary {
@@ -199,7 +199,7 @@ h2 {
 }
 
 .btn.secondary:hover:not(:disabled) {
-    background-color: var(--secondary-color-hover);
+    filter: brightness(90%);
 }
 
 .btn.danger {
@@ -208,7 +208,16 @@ h2 {
 }
 
 .btn.danger:hover:not(:disabled) {
-    background-color: var(--danger-color-hover);
+    filter: brightness(90%);
+}
+
+.btn.warning {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.btn.warning:hover:not(:disabled) {
+    filter: brightness(90%);
 }
 
 .stats {
@@ -589,4 +598,477 @@ h2 {
     .settings-form {
         max-width: 100%;
     }
+}
+
+
+/* Dark Theme */
+
+body[data-theme='dark'] {
+    --bg-color: #212529;
+    --text-color: #f8f9fa;
+    --sidebar-bg: #343a40;
+    --sidebar-text: #ced4da;
+    --sidebar-active-bg: #007bff;
+    --sidebar-active-text: #ffffff;
+    --main-bg: #2b2f33;
+    --card-bg: #343a40;
+    --card-border: #495057;
+    --primary-btn-bg: #0d6efd;
+    --primary-btn-text: #ffffff;
+    --secondary-btn-bg: #6c757d;
+    --secondary-btn-text: #ffffff;
+    --danger-btn-bg: #dc3545;
+    --danger-btn-text: #ffffff;
+    --warning-btn-bg: #ffc107;
+    --warning-btn-text: #212529;
+    --status-bar-bg: #343a40;
+    --status-bar-text: #ced4da;
+    --link-color: #3b9dff;
+    --border-color: #495057;
+    --indicator-recording: #198754;
+    --indicator-stopped: #dc3545;
+    --indicator-paused: #ffc107;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.app-container {
+    display: flex;
+    flex: 1;
+    /* Fill remaining height */
+    height: calc(100vh - 30px);
+    /* Adjust for status bar */
+}
+
+
+/* Sidebar */
+
+.sidebar {
+    width: 220px;
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 20px 10px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+}
+
+.sidebar .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 25px;
+    color: var(--text-color);
+    /* Use main text color for logo */
+}
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav li {
+    margin-bottom: 5px;
+}
+
+.sidebar nav a {
+    display: flex;
+    /* Use flexbox for icon alignment */
+    align-items: center;
+    padding: 10px 15px;
+    text-decoration: none;
+    color: var(--sidebar-text);
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar nav a .icon {
+    margin-right: 10px;
+    width: 20px;
+    /* Ensure consistent icon spacing */
+    text-align: center;
+}
+
+.sidebar nav a:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+}
+
+.sidebar nav a.active {
+    background-color: var(--sidebar-active-bg);
+    color: var(--sidebar-active-text);
+    font-weight: 500;
+}
+
+.sidebar-controls {
+    margin-top: auto;
+    /* Push controls to the bottom */
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    /* Stack buttons vertically */
+    gap: 10px;
+    /* Add space between buttons */
+}
+
+
+/* Main Content */
+
+.main-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    /* Allow content scrolling */
+    background-color: var(--main-bg);
+}
+
+.content-pane {
+    display: none;
+    /* Hide panes by default */
+}
+
+.content-pane.active {
+    display: block;
+    /* Show active pane */
+}
+
+
+/* Stats Cards */
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background-color: var(--card-bg);
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--card-border);
+    text-align: center;
+}
+
+.stat-card h3 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: var(--sidebar-text);
+    /* Use sidebar text color for headings */
+    font-weight: 500;
+}
+
+.stat-card p {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.status-card {
+    /* Add specific styles if needed */
+}
+
+.status-card.recording {
+    border-left: 4px solid var(--indicator-recording);
+}
+
+.status-card.stopped {
+    border-left: 4px solid var(--indicator-stopped);
+}
+
+.status-card.paused {
+    border-left: 4px solid var(--indicator-paused);
+}
+
+
+/* Charts */
+
+.charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.chart-container {
+    background-color: var(--card-bg);
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--card-border);
+}
+
+.chart-container h3 {
+    font-size: 1rem;
+    margin-bottom: 15px;
+    text-align: center;
+    font-weight: 500;
+}
+
+
+/* Buttons */
+
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s, opacity 0.2s;
+    text-align: center;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn.primary {
+    background-color: var(--primary-btn-bg);
+    color: var(--primary-btn-text);
+}
+
+.btn.primary:hover:not(:disabled) {
+    filter: brightness(90%);
+}
+
+.btn.secondary {
+    background-color: var(--secondary-btn-bg);
+    color: var(--secondary-btn-text);
+}
+
+.btn.secondary:hover:not(:disabled) {
+    filter: brightness(90%);
+}
+
+.btn.danger {
+    background-color: var(--danger-btn-bg);
+    color: var(--danger-btn-text);
+}
+
+.btn.danger:hover:not(:disabled) {
+    filter: brightness(90%);
+}
+
+.btn.warning {
+    background-color: var(--warning-btn-bg);
+    color: var(--warning-btn-text);
+}
+
+.btn.warning:hover:not(:disabled) {
+    filter: brightness(90%);
+}
+
+
+/* Settings Form */
+
+.settings-form {
+    max-width: 800px;
+}
+
+.settings-group {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-group:last-child {
+    border-bottom: none;
+}
+
+.settings-group h3 {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    color: var(--text-color);
+    border-left: 3px solid var(--primary-btn-bg);
+    padding-left: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    /* Align items vertically */
+    gap: 10px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    min-width: 120px;
+    /* Ensure labels align */
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    flex-grow: 1;
+    /* Allow input to take available space */
+}
+
+.form-group.checkbox-group {
+    align-items: center;
+}
+
+.form-group.checkbox-group label {
+    margin-bottom: 0;
+    margin-left: 5px;
+}
+
+.form-group.date-range div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.warning-text {
+    color: var(--danger-btn-bg);
+    font-size: 0.85rem;
+    margin-left: 10px;
+}
+
+.danger-zone label {
+    color: var(--danger-btn-bg);
+}
+
+.assessment-result-area {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: var(--sidebar-bg);
+    border-left: 3px solid var(--indicator-paused);
+    border-radius: 3px;
+}
+
+
+/* Health Insight Pane */
+
+.health-assessment {
+    padding: 15px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-left: 4px solid var(--indicator-paused);
+    /* Use warning color */
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+#health-insight ul {
+    list-style-position: inside;
+    padding-left: 10px;
+}
+
+#health-insight li {
+    margin-bottom: 8px;
+}
+
+
+/* Status Bar */
+
+.status-bar {
+    height: 30px;
+    background-color: var(--status-bar-bg);
+    color: var(--status-bar-text);
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border-color);
+    gap: 15px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.indicator-light {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--indicator-stopped);
+    /* Default to stopped */
+    transition: background-color 0.3s;
+}
+
+.status-indicator.recording .indicator-light {
+    background-color: var(--indicator-recording);
+    animation: pulse 1.5s infinite;
+}
+
+.status-indicator.paused .indicator-light {
+    background-color: var(--indicator-paused);
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(var(--indicator-recording-rgb, 40, 167, 69), 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(var(--indicator-recording-rgb, 40, 167, 69), 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--indicator-recording-rgb, 40, 167, 69), 0);
+    }
+}
+
+
+/* Add RGB vars for pulse animation - needs update for dark theme */
+
+body {
+    --indicator-recording-rgb: 40, 167, 69;
+}
+
+body[data-theme='dark'] {
+    --indicator-recording-rgb: 25, 135, 84;
+}
+
+
+/* Error Message */
+
+.error-message {
+    background-color: var(--danger-btn-bg);
+    color: var(--danger-btn-text);
+    padding: 10px 15px;
+    margin: -20px -20px 20px -20px;
+    /* Span across padding */
+    text-align: center;
+    font-weight: 500;
+    border-radius: 0;
+    /* Remove radius if spanning */
+}
+
+
+/* Placeholders */
+
+.list-placeholder,
+.chart-placeholder {
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sidebar-text);
+    background-color: var(--sidebar-bg);
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+
+/* External Link Icon */
+
+.external-link::after {
+    content: ' ↗';
+    font-size: 0.8em;
+    vertical-align: super;
+    margin-left: 2px;
 }
