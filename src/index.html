@@ -9,130 +9,263 @@
 </head>
 
 <body>
-    <header>
-        <h1>键盘侠</h1>
-        <div class="controls">
-            <button id="startRecord" class="btn primary">开始记录</button>
-            <button id="stopRecord" class="btn secondary" disabled>停止记录</button>
-            <button id="settingsButton" class="btn secondary">设置</button>
-        </div>
-    </header>
+    <div class="app-container">
+        <aside class="sidebar">
+            <h1 class="logo">键盘侠</h1>
+            <!-- App Title/Logo in Sidebar -->
+            <nav>
+                <ul>
+                    <!-- Icons are placeholders, can be replaced with SVGs or font icons -->
+                    <li><a href="#" class="nav-link active" data-target="dashboard"><span class="icon">📊</span> 概览</a></li>
+                    <li><a href="#" class="nav-link" data-target="detailed-stats"><span class="icon">📈</span> 详细统计</a></li>
+                    <li><a href="#" class="nav-link" data-target="time-analysis"><span class="icon">⏱️</span> 时间分析</a></li>
+                    <li><a href="#" class="nav-link" data-target="app-stats"><span class="icon">💻</span> 应用统计</a></li>
+                    <li><a href="#" class="nav-link" data-target="health-insight"><span class="icon">❤️‍🩹</span> 健康洞察</a></li>
+                    <li><a href="#" class="nav-link" data-target="settings"><span class="icon">⚙️</span> 设置</a></li>
+                </ul>
+            </nav>
+            <!-- Controls can be moved here or kept in status bar -->
+            <div class="sidebar-controls">
+                <button id="startRecord" class="btn primary">开始记录</button>
+                <button id="stopRecord" class="btn secondary" disabled>停止记录</button>
+            </div>
+        </aside>
 
-    <main>
-        <section class="stats">
-            <div class="stat-card">
-                <h3>今日总按键</h3>
-                <p id="totalKeysToday">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>本周总按键</h3>
-                <p id="totalKeysWeek">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>本月总按键</h3>
-                <p id="totalKeysMonth">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>累计总按键</h3>
-                <p id="totalKeysAll">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>当前 KPM</h3>
-                <p id="currentKPM">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>记录状态</h3>
-                <p id="recordingStatus" style="font-size: 1.5rem;">已停止</p>
-            </div>
-        </section>
+        <main class="main-content">
+            <!-- Dashboard Pane -->
+            <section id="dashboard" class="content-pane active">
+                <h2>概览</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <h3>今日总按键</h3>
+                        <p id="totalKeysToday">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>本周总按键</h3>
+                        <p id="totalKeysWeek">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>本月总按键</h3>
+                        <p id="totalKeysMonth">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>累计总按键</h3>
+                        <p id="totalKeysAll">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>当前 KPM</h3>
+                        <p id="currentKPM">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>记录状态</h3>
+                        <p id="recordingStatus" style="font-size: 1.5rem;">已停止</p>
+                    </div>
+                </div>
+                <div class="charts">
+                    <div class="chart-container">
+                        <h3>按键时间分布 (最近24小时)</h3>
+                        <!-- More specific title -->
+                        <canvas id="keyTimeDistributionChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>最常用按键 Top 10</h3>
+                        <canvas id="topKeysChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>最活跃应用 Top 5</h3>
+                        <canvas id="topAppsChart"></canvas>
+                    </div>
+                    <!-- Other charts can be moved to specific panes -->
+                </div>
+            </section>
 
-        <section class="charts">
-            <div class="chart-container">
-                <h3>按键类型分布</h3>
-                <canvas id="keyTypeDistributionChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>按键时间分布 (小时)</h3>
-                <canvas id="keyTimeDistributionChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>按键星期分布</h3>
-                <canvas id="keyWeekdayDistributionChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>最活跃应用 Top 5</h3>
-                <canvas id="topAppsChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>最常用按键 Top 10</h3>
-                <canvas id="topKeysChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3>健康风险评估 (示例)</h3>
-                <p id="healthRisk" style="padding: 20px; text-align: left;">根据您的按键频率和使用时长评估... (功能待完善)</p>
-            </div>
-        </section>
-    </main>
+            <!-- Detailed Stats Pane -->
+            <section id="detailed-stats" class="content-pane">
+                <h2>详细统计</h2>
+                <!-- Add controls like time range selector here -->
+                <div class="controls-bar">
+                    <label for="detailed-stats-range">时间范围:</label>
+                    <select id="detailed-stats-range">
+                         <option value="today">今日</option>
+                         <option value="week" selected>本周</option>
+                         <option value="month">本月</option>
+                         <option value="all">全部</option>
+                     </select>
+                </div>
+                <div class="charts">
+                    <div class="chart-container">
+                        <h3>按键类型分布</h3>
+                        <canvas id="keyTypeDistributionChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>按键星期分布</h3>
+                        <canvas id="keyWeekdayDistributionChart"></canvas>
+                    </div>
+                    <div class="chart-container" style="grid-column: span 2;">
+                        <!-- Example for wider table/list -->
+                        <h3>按键列表 (Top 50)</h3>
+                        <div class="list-placeholder">[数据列表或表格区域]</div>
+                        <!-- Placeholder for table -->
+                    </div>
+                </div>
+            </section>
 
-    <div id="settingsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+            <!-- Time Analysis Pane -->
+            <section id="time-analysis" class="content-pane">
+                <h2>时间分析</h2>
+                <div class="controls-bar">
+                    <label for="time-analysis-range">时间范围:</label>
+                    <select id="time-analysis-range">
+                         <option value="today">今日</option>
+                         <option value="week" selected>本周</option>
+                         <option value="month">本月</option>
+                     </select>
+                </div>
+                <div class="charts">
+                    <div class="chart-container" style="grid-column: span 2;">
+                        <h3>键盘活动热力图 (日/小时)</h3>
+                        <canvas id="heatmapChart"></canvas>
+                        <!-- Placeholder for heatmap -->
+                        <div class="chart-placeholder">[热力图区域]</div>
+                    </div>
+                    <div class="chart-container" style="grid-column: span 2;">
+                        <h3>活动趋势 (按天)</h3>
+                        <canvas id="dailyTrendChart"></canvas>
+                        <!-- Placeholder for line chart -->
+                        <div class="chart-placeholder">[折线图区域]</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Application Stats Pane -->
+            <section id="app-stats" class="content-pane">
+                <h2>应用统计</h2>
+                <div class="controls-bar">
+                    <label for="app-stats-range">时间范围:</label>
+                    <select id="app-stats-range">
+                         <option value="today">今日</option>
+                         <option value="week" selected>本周</option>
+                         <option value="month">本月</option>
+                         <option value="all">全部</option>
+                     </select>
+                </div>
+                <div class="charts">
+                    <div class="chart-container" style="grid-column: span 2;">
+                        <h3>应用按键数 Top 10</h3>
+                        <div class="list-placeholder">[应用列表/图表区域]</div>
+                        <canvas id="appKeysChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Health Insight Pane -->
+            <section id="health-insight" class="content-pane">
+                <h2>健康洞察</h2>
+                <div class="settings-group">
+                    <h3>风险评估</h3>
+                    <div id="healthRiskDisplay" class="health-assessment">
+                        <p>请在"设置"中提供您的职业和平均使用时长，以获得更个性化的评估。</p>
+                        <p>当前评估（基于通用数据）：[评估结果区域]</p>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h3>健康建议</h3>
+                    <ul>
+                        <li>定时休息，建议每小时起身活动 5-10 分钟。</li>
+                        <li>保持正确的坐姿和手腕姿势。</li>
+                        <li>进行手部和腕部伸展运动。</li>
+                        <li>如果感到不适，请咨询专业医生。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Settings Pane (Modal kept separate, this is for settings content if not using modal) -->
+            <section id="settings" class="content-pane">
                 <h2>设置</h2>
-                <button class="close" id="closeModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="settings-group">
-                    <h3>数据管理</h3>
-                    <div class="form-group">
-                        <label for="exportFormat">导出格式:</label>
-                        <select id="exportFormat">
-                            <option value="json">JSON</option>
-                            <option value="csv">CSV</option>
-                        </select>
-                        <button id="exportData" class="btn primary">导出数据</button>
+                <div class="settings-form">
+                    <div class="settings-group">
+                        <h3>通用</h3>
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="startOnLogin">
+                            <label for="startOnLogin">开机自启</label>
+                        </div>
+                        <div class="form-group">
+                            <label for="themeSelect">主题:</label>
+                            <select id="themeSelect" disabled>
+                                 <option>系统默认</option>
+                                 <option>浅色</option>
+                                 <option>深色</option>
+                             </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="clearDataRangeStart">清除数据范围 (开始):</label>
-                        <input type="date" id="clearDataRangeStart">
+                    <div class="settings-group">
+                        <h3>健康档案 (可选)</h3>
+                        <div class="form-group">
+                            <label for="userProfession">职业:</label>
+                            <input type="text" id="userProfession" placeholder="例如: 程序员, 文字工作者"> </input>
+                        </div>
+                        <div class="form-group">
+                            <label for="userDailyUse">平均每日电脑使用时长:</label>
+                            <select id="userDailyUse">
+                                 <option value="">未设置</option>
+                                 <option value="<2">少于2小时</option>
+                                 <option value="2-4">2-4小时</option>
+                                 <option value="4-6">4-6小时</option>
+                                 <option value="6-8">6-8小时</option>
+                                 <option value="8+">8小时以上</option>
+                             </select>
+                        </div>
+                        <button id="saveProfile" class="btn primary">保存档案</button>
                     </div>
-                    <div class="form-group">
-                        <label for="clearDataRangeEnd">清除数据范围 (结束):</label>
-                        <input type="date" id="clearDataRangeEnd">
-                        <button id="clearDataRange" class="btn danger">清除范围内数据</button>
+                    <div class="settings-group">
+                        <h3>数据管理</h3>
+                        <div class="form-group">
+                            <label for="exportFormat">导出格式:</label>
+                            <select id="exportFormat">
+                                 <option value="json">JSON</option>
+                                 <option value="csv">CSV</option>
+                             </select>
+                            <button id="exportData" class="btn secondary">导出数据</button>
+                        </div>
+                        <div class="form-group date-range">
+                            <label>清除范围数据:</label>
+                            <div>
+                                <input type="date" id="clearDataRangeStart" title="开始日期">
+                                <span>到</span>
+                                <input type="date" id="clearDataRangeEnd" title="结束日期">
+                            </div>
+                            <button id="clearDataRange" class="btn danger">清除范围内数据</button>
+                        </div>
+                        <div class="form-group danger-zone">
+                            <label>清除所有数据:</label>
+                            <button id="clearAllData" class="btn danger">清除所有记录</button>
+                            <p class="warning-text">警告：此操作不可逆！</p>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>清除所有数据:</label>
-                        <button id="clearAllData" class="btn danger">清除所有数据</button>
-                        <p style="font-size: 0.8rem; color: var(--text-muted-color); margin-top: 5px;">警告：此操作不可逆！</p>
+                    <div class="settings-group">
+                        <h3>关于</h3>
+                        <p>版本: 1.0.0 (Alpha)</p>
+                        <p>作者: [Your Name/AI]</p>
+                        <p><a href="#" target="_blank" class="external-link">GitHub 仓库</a> | <a href="#" target="_blank" class="external-link">问题反馈</a></p>
                     </div>
                 </div>
-                <div class="settings-group">
-                    <h3>通用设置 (待实现)</h3>
-                    <div class="form-group">
-                        <label class="form-check-label">
-                            <input type="checkbox" id="startOnLogin"> 开机自启
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <label for="themeSelect">主题:</label>
-                        <select id="themeSelect" disabled>
-                            <option>系统默认</option>
-                            <option>浅色</option>
-                            <option>深色</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="settings-group">
-                    <h3>关于</h3>
-                    <p>版本: 1.0.0 (Alpha)</p>
-                    <p>作者: [Your Name/AI]</p>
-                    <p><a href="#" target="_blank">GitHub</a> | <a href="#" target="_blank">问题反馈</a></p>
-                </div>
-            </div>
-        </div>
+            </section>
+        </main>
     </div>
 
+    <!-- Status Bar -->
+    <footer class="status-bar">
+        <div id="statusIndicator">状态: <span class="status-text">已停止</span></div>
+        <!-- Pause/Resume can be added here if needed -->
+        <!-- <button id="pauseResumeButton" class="btn mini-btn">暂停</button> -->
+    </footer>
+
+    <!-- Settings Modal (Keep for now, maybe remove if settings pane is preferred) -->
+    <!-- <div id="settingsModal" class="modal"> ... existing modal code ... </div> -->
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- Adapter for time scale -->
     <script src="js/main.js"></script>
 </body>
 

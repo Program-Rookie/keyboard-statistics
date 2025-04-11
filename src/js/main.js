@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/tauri';
+const { invoke } = window.__TAURI__.tauri;
 import { appWindow } from '@tauri-apps/api/window';
 import Chart from 'chart.js/auto';
 
@@ -326,3 +326,407 @@ async function init() {
 
 // 启动应用
 init().catch(console.error);
+
+document.addEventListener('DOMContentLoaded', () => {
+    const startRecordBtn = document.getElementById('startRecord');
+    const stopRecordBtn = document.getElementById('stopRecord');
+
+    const statusIndicatorElement = document.getElementById('statusIndicator');
+    const statusIndicator = statusIndicatorElement ? statusIndicatorElement.querySelector('.status-text') : null;
+    const recordingStatusCard = document.getElementById('recordingStatus');
+
+    const navLinks = document.querySelectorAll('.sidebar .nav-link');
+    const contentPanes = document.querySelectorAll('.main-content .content-pane');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+            const targetId = link.getAttribute('data-target');
+            const targetPane = document.getElementById(targetId);
+
+            navLinks.forEach(l => l.classList.remove('active'));
+            contentPanes.forEach(p => p.classList.remove('active'));
+
+            link.classList.add('active');
+            if (targetPane) {
+                targetPane.classList.add('active');
+            }
+        });
+    });
+
+    let charts = {};
+    const chartConfigs = {
+        keyTypeDistributionChart: {
+            type: 'doughnut',
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '按键类型分布'
+                    }
+                }
+            }
+        },
+        keyTimeDistributionChart: {
+            type: 'bar',
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '按键时间分布 (小时)'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '小时'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '按键次数'
+                        }
+                    }
+                }
+            }
+        },
+        keyWeekdayDistributionChart: {
+            type: 'bar',
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '按键星期分布'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '星期'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '按键次数'
+                        }
+                    }
+                }
+            }
+        },
+        topAppsChart: {
+            type: 'bar',
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: '最活跃应用 Top 5'
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '按键次数'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        },
+        topKeysChart: {
+            type: 'bar',
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: '最常用按键 Top 10'
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '按键次数'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        },
+        heatmapChart: {
+            // Config needed
+        },
+        dailyTrendChart: {
+            // Config needed
+        },
+        appKeysChart: {
+            // Config needed
+        }
+    };
+
+    function initChart(canvasId) {
+        const canvasElement = document.getElementById(canvasId);
+        const ctx = canvasElement ? canvasElement.getContext('2d') : null;
+        if (!ctx) {
+            console.warn(`Canvas element with ID '${canvasId}' not found or context failed.`);
+            return;
+        }
+        if (charts[canvasId]) {
+            charts[canvasId].destroy();
+        }
+        const config = chartConfigs[canvasId];
+        if (config && Object.keys(config).length > 0) {
+            charts[canvasId] = new Chart(ctx, {
+                type: config.type,
+                data: { labels: [], datasets: [] },
+                options: config.options
+            });
+        } else {
+            console.warn(`Chart config for ID '${canvasId}' not found or is empty.`);
+        }
+    }
+
+    function initializeAllCharts() {
+        Object.keys(chartConfigs).forEach(id => {
+            if (document.getElementById(id)) {
+                initChart(id);
+            }
+        });
+    }
+
+    async function updateStats() {
+        try {
+            const stats = await invoke('get_stats');
+            document.getElementById('totalKeysToday').textContent = stats.total_keys_today || 0;
+            document.getElementById('totalKeysWeek').textContent = stats.total_keys_week || 0;
+            document.getElementById('totalKeysMonth').textContent = stats.total_keys_month || 0;
+            document.getElementById('totalKeysAll').textContent = stats.total_keys_all || 0;
+            document.getElementById('currentKPM').textContent = stats.current_kpm || 0;
+
+            const isRecording = stats.is_recording;
+            if (recordingStatusCard) {
+                recordingStatusCard.textContent = isRecording ? '记录中' : '已停止';
+            }
+            if (statusIndicator) {
+                statusIndicator.textContent = isRecording ? '记录中' : '已停止';
+            }
+            if (startRecordBtn) startRecordBtn.disabled = isRecording;
+            if (stopRecordBtn) stopRecordBtn.disabled = !isRecording;
+
+            updateChartData('keyTypeDistributionChart', stats.key_type_distribution);
+            updateChartData('keyTimeDistributionChart', stats.key_time_distribution);
+            updateChartData('keyWeekdayDistributionChart', stats.key_weekday_distribution);
+            updateChartData('topAppsChart', stats.top_apps);
+            updateChartData('topKeysChart', stats.top_keys);
+        } catch (error) {
+            console.error("Failed to update stats:", error);
+            showError("更新统计数据失败", error);
+        }
+    }
+
+    function updateChartData(chartId, data) {
+        const chart = charts[chartId];
+        if (!chart) {
+            console.warn(`Chart '${chartId}' not initialized or not visible.`);
+            return;
+        }
+        if (!data) {
+            console.warn(`No data provided for chart '${chartId}'. Clearing chart.`);
+            chart.data.labels = [];
+            chart.data.datasets = [];
+            chart.update();
+            return;
+        }
+
+        try {
+            if (chartId === 'keyTypeDistributionChart' || chartId === 'keyWeekdayDistributionChart') {
+                if (typeof data !== 'object' || data === null) throw new Error('Invalid data format for pie/doughnut/bar');
+                chart.data.labels = Object.keys(data);
+                let labelText = '数据';
+                const config = chartConfigs[chartId];
+                if (config && config.options && config.options.plugins && config.options.plugins.title && config.options.plugins.title.text) {
+                    labelText = config.options.plugins.title.text;
+                }
+                chart.data.datasets = [{
+                    label: labelText,
+                    data: Object.values(data),
+                    backgroundColor: [
+                        'rgba(74, 144, 226, 0.7)',
+                        'rgba(108, 117, 125, 0.7)',
+                        'rgba(40, 167, 69, 0.7)',
+                        'rgba(220, 53, 69, 0.7)',
+                        'rgba(255, 193, 7, 0.7)',
+                        'rgba(23, 162, 184, 0.7)',
+                        'rgba(52, 58, 64, 0.7)'
+                    ]
+                }];
+            } else if (chartId === 'keyTimeDistributionChart') {
+                if (typeof data !== 'object' || data === null) throw new Error('Invalid data format for time distribution');
+                const labels = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+                const values = labels.map(hour => data[hour] || 0);
+                chart.data.labels = labels;
+                chart.data.datasets = [{
+                    label: '按键次数',
+                    data: values,
+                    backgroundColor: 'rgba(74, 144, 226, 0.5)',
+                    borderColor: 'rgba(74, 144, 226, 1)',
+                    borderWidth: 1
+                }];
+            } else if (chartId === 'topAppsChart' || chartId === 'topKeysChart') {
+                if (!Array.isArray(data)) throw new Error('Invalid data format for top list');
+                chart.data.labels = data.map(item => item[0]);
+                chart.data.datasets = [{
+                    label: '按键次数',
+                    data: data.map(item => item[1]),
+                    backgroundColor: 'rgba(74, 144, 226, 0.5)',
+                    borderColor: 'rgba(74, 144, 226, 1)',
+                    borderWidth: 1
+                }];
+            }
+            chart.update();
+        } catch (error) {
+            console.error(`Failed to update chart '${chartId}':`, error);
+            showError(`更新图表 ${chartId} 失败`, error);
+        }
+    }
+
+    if (startRecordBtn) {
+        startRecordBtn.addEventListener('click', async() => {
+            try {
+                await invoke('start_recording');
+                console.log('Start recording command sent.');
+                await updateStats();
+            } catch (error) {
+                console.error("Failed to start recording:", error);
+                showError("启动记录失败", error);
+            }
+        });
+    }
+
+    if (stopRecordBtn) {
+        stopRecordBtn.addEventListener('click', async() => {
+            try {
+                await invoke('stop_recording');
+                console.log('Stop recording command sent.');
+                await updateStats();
+            } catch (error) {
+                console.error("Failed to stop recording:", error);
+                showError("停止记录失败", error);
+            }
+        });
+    }
+
+    const exportBtn = document.getElementById('exportData');
+    const clearAllBtn = document.getElementById('clearAllData');
+    const clearRangeBtn = document.getElementById('clearDataRange');
+    const saveProfileBtn = document.getElementById('saveProfile');
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async() => {
+            const exportFormatElement = document.getElementById('exportFormat');
+            const format = (exportFormatElement ? exportFormatElement.value : null) || 'json';
+            try {
+                const result = await invoke('export_data', { format });
+                alert(`数据已导出到: ${result}`);
+            } catch (error) {
+                console.error("Failed to export data:", error);
+                showError("导出数据失败", error);
+            }
+        });
+    }
+
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', async() => {
+            if (confirm('确定要清除所有记录吗？此操作不可逆！')) {
+                try {
+                    await invoke('clear_all_data');
+                    alert('所有数据已清除。');
+                    await updateStats();
+                } catch (error) {
+                    console.error("Failed to clear all data:", error);
+                    showError("清除所有数据失败", error);
+                }
+            }
+        });
+    }
+
+    if (clearRangeBtn) {
+        clearRangeBtn.addEventListener('click', async() => {
+            const startDateElement = document.getElementById('clearDataRangeStart');
+            const startDate = startDateElement ? startDateElement.value : null;
+            const endDateElement = document.getElementById('clearDataRangeEnd');
+            const endDate = endDateElement ? endDateElement.value : null;
+            if (!startDate || !endDate) {
+                alert('请选择要清除数据的开始和结束日期。');
+                return;
+            }
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('开始日期不能晚于结束日期。');
+                return;
+            }
+            if (confirm(`确定要清除从 ${startDate} 到 ${endDate} 的所有记录吗？此操作不可逆！`)) {
+                try {
+                    await invoke('clear_data_range', { startDate, endDate });
+                    alert('选定范围内的数据已清除。');
+                    await updateStats();
+                } catch (error) {
+                    console.error("Failed to clear data range:", error);
+                    showError("清除范围数据失败", error);
+                }
+            }
+        });
+    }
+
+    if (saveProfileBtn) {
+        saveProfileBtn.addEventListener('click', () => {
+            const professionElement = document.getElementById('userProfession');
+            const profession = professionElement ? professionElement.value : null;
+            const dailyUseElement = document.getElementById('userDailyUse');
+            const dailyUse = dailyUseElement ? dailyUseElement.value : null;
+            console.log(`Saving profile: Profession=${profession}, DailyUse=${dailyUse}`);
+            invoke('save_user_profile', { profession, dailyUse })
+                .then(() => alert('健康档案已保存。'))
+                .catch(error => {
+                    console.error("Failed to save profile:", error);
+                    showError("保存健康档案失败", error);
+                });
+        });
+    }
+
+    function showError(message, error) {
+        console.error(message, error);
+        alert(`错误: ${message}\n${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    console.log("DOM loaded. Initializing application...");
+    initializeAllCharts();
+    updateStats();
+
+    setInterval(updateStats, 30000);
+    console.log("Initialization complete. Periodic updates started.");
+});
