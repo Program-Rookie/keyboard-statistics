@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Stats Prototype</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <nav>
+                <ul>
+                    <li><a href="#" class="nav-link active" data-target="dashboard">[📊] Dashboard</a></li>
+                    <li><a href="#" class="nav-link" data-target="detailed-stats">[📈] Detailed Stats</a></li>
+                    <li><a href="#" class="nav-link" data-target="time-analysis">[⏱️] Time Analysis</a></li>
+                    <li><a href="#" class="nav-link" data-target="app-stats">[💻] Application Stats</a></li>
+                    <li><a href="#" class="nav-link" data-target="health-insight">[❤️‍🩹] Health Insight</a></li>
+                    <li><a href="#" class="nav-link" data-target="ai-guide">[✨] AI Analysis Guide</a></li>
+                    <li><a href="#" class="nav-link" data-target="settings">[⚙️] Settings</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <!-- Dashboard Pane -->
+            <section id="dashboard" class="content-pane active">
+                <h2>Dashboard / 概览</h2>
+                <div class="card-row">
+                    <div class="card">
+                        <h3>Total Keys Today</h3>
+                        <p class="large-number">18,345</p>
+                    </div>
+                    <div class="card">
+                        <h3>Current KPM</h3>
+                        <p class="large-number">75</p>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>Keys Over Last 24 Hours</h3>
+                    <div class="chart-placeholder">[Simple Bar Chart Area]</div>
+                </div>
+                <div class="list-row">
+                    <div class="list-container">
+                        <h3>Top 3 Keys Today</h3>
+                        <ul>
+                            <li>1. KeyCode_E - 5,234 times</li>
+                            <li>2. KeyCode_Space - 4,876 times</li>
+                            <li>3. KeyCode_Backspace - 3,102 times</li>
+                        </ul>
+                    </div>
+                    <div class="list-container">
+                        <h3>Top 3 Apps Today</h3>
+                        <ul>
+                            <li>1. chrome.exe - 15,456 times</li>
+                            <li>2. vscode.exe - 12,890 times</li>
+                            <li>3. wechat.exe - 8,765 times</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="ai-prompt">Want deeper insights? <a href="#" class="nav-link inline-link" data-target="ai-guide">Check the AI Analysis Guide</a>.</p>
+            </section>
+
+            <!-- Detailed Stats Pane -->
+            <section id="detailed-stats" class="content-pane">
+                <h2>Detailed Stats / 详细统计</h2>
+                <label for="stats-time-range">Time Range:</label>
+                <select id="stats-time-range">
+                    <option>Today</option>
+                    <option selected>This Week</option>
+                    <option>This Month</option>
+                    <option>All Time</option>
+                </select>
+
+                <div class="section-row">
+                    <div class="chart-container half-width">
+                        <h3>Key Counts by Type</h3>
+                        <div class="chart-placeholder">[Pie Chart Area]</div>
+                    </div>
+                    <div class="list-container half-width">
+                        <h3>Top 20 Keys</h3>
+                        <div class="table-placeholder">[Table: Rank, KeyCode, Count, %]</div>
+                    </div>
+                </div>
+                <div class="list-container">
+                    <h3>Top 20 Combos (Ctrl+C etc.)</h3>
+                    <div class="table-placeholder">[Table: Rank, Combo, Count]</div>
+                </div>
+            </section>
+
+            <!-- Time Analysis Pane -->
+            <section id="time-analysis" class="content-pane">
+                <h2>Time Analysis / 时间分析</h2>
+                <label for="time-range-select">Time Range:</label>
+                <select id="time-range-select">
+                     <option>Today</option>
+                     <option selected>This Week</option>
+                     <option>This Month</option>
+                 </select>
+                <div class="chart-container">
+                    <h3>Keyboard Activity Heatmap (This Week)</h3>
+                    <div class="chart-placeholder">[Heatmap Chart Area: Day of Week vs Hour]</div>
+                </div>
+                <div class="chart-container">
+                    <h3>Activity Over Time (This Week)</h3>
+                    <div class="chart-placeholder">[Line Chart Area: Date vs Key Count]</div>
+                </div>
+            </section>
+
+            <!-- Application Stats Pane -->
+            <section id="app-stats" class="content-pane">
+                <h2>Application Stats / 应用统计</h2>
+                <label for="app-time-range">Time Range:</label>
+                <select id="app-time-range">
+                     <option>Today</option>
+                     <option selected>This Week</option>
+                     <option>This Month</option>
+                     <option>All Time</option>
+                 </select>
+                <div class="section-row">
+                    <div class="list-container half-width">
+                        <h3>Keypresses per Application</h3>
+                        <div class="table-placeholder">[Bar Chart/List Area: App vs Key Count]</div>
+                    </div>
+                    <div class="list-container half-width">
+                        <h3>Active Time per Application (Estimated)</h3>
+                        <div class="table-placeholder">[Bar Chart/List Area: App vs Active Time]</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Health Insight Pane -->
+            <section id="health-insight" class="content-pane">
+                <h2>Health Insight / 健康洞察</h2>
+                <div class="form-section">
+                    <h3>Your Profile (Optional)</h3>
+                    <label for="profession">Profession:</label>
+                    <input type="text" id="profession" placeholder="e.g., Programmer, Writer">
+                    <label for="computer-use">Avg. Daily Computer Use:</label>
+                    <select id="computer-use">
+                        <option><2h</option>
+                        <option>2-4h</option>
+                        <option>4-6h</option>
+                        <option selected>6-8h</option>
+                        <option>8h+</option>
+                    </select>
+                    <button>Save Profile</button>
+                </div>
+                <div class="insight-section">
+                    <h3>Based on Your Input & Activity</h3>
+                    <div class="text-area readonly">
+                        Based on your recorded activity (e.g., high average KPM, long continuous typing sessions) and your profile (Profession: Programmer), we suggest: Prolonged high-intensity keyboard use may increase the risk of hand fatigue. Consider taking short breaks
+                        every hour and maintaining proper posture.
+                        <br><br>
+                        <strong>Disclaimer:</strong> This is a general suggestion based on limited data and not a substitute for professional medical advice.
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Analysis Guide Pane -->
+            <section id="ai-guide" class="content-pane">
+                <h2>AI Analysis Guide / AI 分析指南</h2>
+                <h3>Get Deeper Insights with AI</h3>
+                <p>This application prioritizes your privacy. All core functions run locally, we don't record actual characters, and your raw key data is never uploaded automatically.</p>
+                <p>To get advanced, personalized reports generated by AI (e.g., pattern recognition, comparisons), follow these steps:</p>
+                <ol>
+                    <li>Go to <a href="#" class="nav-link inline-link" data-target="settings">Settings</a> > Data Management.</li>
+                    <li>Use the "Export Data" function to save your keypress data (CSV/JSON) locally.</li>
+                    <li>Visit our external AI analysis service: <a href="https://www.example-ai-analysis-site.com" target="_blank" rel="noopener noreferrer">www.example-ai-analysis-site.com</a> (Note: This is separate. Review its privacy policy).</li>
+                    <li>Voluntarily upload your exported file on that website.</li>
+                    <li>The AI will process your data there and generate a report.</li>
+                </ol>
+                <p class="warning"><strong>Important:</strong> Exporting and uploading data is entirely optional and your responsibility. Understand and agree to the external site's data handling practices before uploading.</p>
+            </section>
+
+            <!-- Settings Pane -->
+            <section id="settings" class="content-pane">
+                <h2>Settings / 设置</h2>
+                <div class="setting-group">
+                    <h3>General</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox"> Start application on system login
+                    </label>
+                    <label for="theme-select">Theme:</label>
+                    <select id="theme-select">
+                        <option>System Default</option>
+                        <option>Light</option>
+                        <option>Dark</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <h3>Data Management</h3>
+                    <p>Data storage location: <span class="code">[Path/To/Your/Data/Folder]</span> <button>Open Folder</button></p>
+                    <button>Export Data...</button>
+                    <div class="danger-zone">
+                        <h4>Danger Zone</h4>
+                        <button class="danger-button">Delete All Recorded Data...</button>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <h3>About</h3>
+                    <p>Key Stats App v1.0</p>
+                    <p>Developed by [Your Name/Handle]</p>
+                    <p><a href="#">View Source on GitHub</a> | <a href="#">Privacy Policy</a> | <a href="#">License</a></p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <footer class="status-bar">
+        <div>Status: <span id="status-indicator">Recording Active</span></div>
+        <button id="pause-resume-button">Pause</button>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

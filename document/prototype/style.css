@@ -1,0 +1,319 @@
+/* Basic Reset & Body */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f4f7f9;
+    display: flex;
+    flex-direction: column;
+    /* Make body a flex container */
+    min-height: 100vh;
+    /* Ensure body takes full viewport height */
+}
+
+
+/* App Layout */
+
+.app-container {
+    display: flex;
+    flex-grow: 1;
+    /* Allow container to grow and fill space */
+    overflow: hidden;
+    /* Prevent scrollbars on container itself */
+}
+
+.sidebar {
+    width: 220px;
+    background-color: #e9edf0;
+    padding: 20px 0;
+    flex-shrink: 0;
+    /* Prevent sidebar from shrinking */
+    overflow-y: auto;
+    /* Add scroll if content overflows */
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 25px;
+    background-color: #fff;
+    overflow-y: auto;
+    /* Add scroll for main content area */
+}
+
+.status-bar {
+    background-color: #dde3e8;
+    padding: 8px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9em;
+    border-top: 1px solid #cdd5dc;
+    flex-shrink: 0;
+    /* Prevent status bar from shrinking */
+}
+
+
+/* Sidebar Navigation */
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav li a.nav-link {
+    display: block;
+    padding: 10px 20px;
+    color: #444;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: background-color 0.2s ease, border-left-color 0.2s ease;
+}
+
+.sidebar nav li a.nav-link:hover {
+    background-color: #dce2e7;
+}
+
+.sidebar nav li a.nav-link.active {
+    background-color: #fff;
+    border-left-color: #007bff;
+    font-weight: 600;
+    color: #0056b3;
+}
+
+
+/* Main Content Panes */
+
+.content-pane {
+    display: none;
+    /* Hide panes by default */
+}
+
+.content-pane.active {
+    display: block;
+    /* Show active pane */
+}
+
+
+/* General Content Styling */
+
+h2 {
+    margin-bottom: 20px;
+    color: #2a3f5f;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+h3 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+    color: #3a5078;
+}
+
+.card-row,
+.list-row,
+.section-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    /* Allow wrapping on smaller screens */
+}
+
+.card {
+    background-color: #f8f9fa;
+    border: 1px solid #e3e9ed;
+    border-radius: 6px;
+    padding: 20px;
+    text-align: center;
+    flex: 1;
+    /* Equal width */
+    min-width: 150px;
+}
+
+.card h3 {
+    margin-top: 0;
+    font-size: 1em;
+    color: #555;
+}
+
+.card .large-number {
+    font-size: 2.5em;
+    font-weight: 600;
+    color: #007bff;
+}
+
+.chart-container,
+.list-container {
+    flex: 1;
+    min-width: 250px;
+    /* Prevent excessive shrinking */
+}
+
+.chart-placeholder,
+.table-placeholder,
+.text-area {
+    background-color: #f0f2f5;
+    border: 1px dashed #cdd5dc;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+    color: #888;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-style: italic;
+}
+
+.table-placeholder {
+    min-height: 100px;
+    align-items: flex-start;
+}
+
+.list-container ul {
+    list-style-position: inside;
+    padding-left: 5px;
+}
+
+.list-container li {
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+
+.half-width {
+    flex-basis: calc(50% - 10px);
+    /* Adjust for gap */
+}
+
+
+/* Form Elements */
+
+label {
+    display: block;
+    margin: 10px 0 5px;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+label.checkbox-label {
+    display: inline-flex;
+    /* Align checkbox and text */
+    align-items: center;
+    margin-right: 15px;
+    font-weight: normal;
+}
+
+label.checkbox-label input {
+    margin-right: 5px;
+}
+
+input[type="text"],
+select,
+.text-area {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 1em;
+}
+
+.text-area.readonly {
+    background-color: #e9ecef;
+    color: #495057;
+    min-height: 100px;
+    /* Adjust as needed */
+    text-align: left;
+    font-style: normal;
+    display: block;
+    /* Override flex centering */
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background-color 0.2s ease;
+    margin-right: 10px;
+    /* Spacing between buttons */
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+.danger-zone {
+    border: 1px solid #f5c6cb;
+    background-color: #f8d7da;
+    padding: 15px;
+    margin-top: 20px;
+    border-radius: 4px;
+}
+
+.danger-zone h4 {
+    color: #721c24;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+button.danger-button {
+    background-color: #dc3545;
+}
+
+button.danger-button:hover {
+    background-color: #c82333;
+}
+
+
+/* Specific Sections */
+
+.form-section,
+.insight-section,
+.setting-group {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.setting-group:last-child {
+    border-bottom: none;
+}
+
+.code {
+    font-family: monospace;
+    background-color: #e9ecef;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-top: 15px;
+}
+
+a.inline-link {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.ai-prompt {
+    margin-top: 20px;
+    font-size: 0.9em;
+    color: #555;
+}
