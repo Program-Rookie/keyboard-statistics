@@ -1,39 +1,390 @@
 <!doctype html>
-<html lang="en">
-  <head>
+<html lang="zh-CN">
+
+<head>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
+    <title>按键统计</title>
     <script type="module" src="/main.js" defer></script>
-  </head>
+</head>
 
-  <body>
-    <main class="container">
-      <h1>Welcome to Tauri</h1>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏导航 -->
+        <nav class="sidebar">
+            <div class="logo">
+                <h2>按键统计</h2>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span> 仪表盘</li>
+                <li class="nav-item" data-page="keyStats"><span class="nav-icon">⌨️</span> 按键统计</li>
+                <li class="nav-item" data-page="timeAnalysis"><span class="nav-icon">⏱️</span> 时间分析</li>
+                <li class="nav-item" data-page="appAnalysis"><span class="nav-icon">📱</span> 应用分析</li>
+                <li class="nav-item" data-page="healthAssessment"><span class="nav-icon">❤️</span> 健康评估</li>
+                <li class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span> 设置</li>
+            </ul>
+            <div class="recording-status">
+                <div class="status-indicator active"></div>
+                <span>正在记录</span>
+                <button id="toggle-recording" class="toggle-btn">暂停</button>
+            </div>
+        </nav>
 
-      <div class="row">
-        <a href="https://tauri.app" target="_blank">
-          <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-        </a>
-        <a
-          href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"
-          target="_blank"
-        >
-          <img
-            src="/assets/javascript.svg"
-            class="logo vanilla"
-            alt="JavaScript logo"
-          />
-        </a>
-      </div>
-      <p>Click on the Tauri logo to learn more about the framework</p>
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 顶部控制栏 -->
+            <div class="top-bar">
+                <div class="time-filter">
+                    <button class="time-btn active" data-time="today">今日</button>
+                    <button class="time-btn" data-time="week">本周</button>
+                    <button class="time-btn" data-time="month">本月</button>
+                    <button class="time-btn" data-time="all">全部</button>
+                </div>
+                <div class="actions">
+                    <button id="export-data" class="action-btn">导出数据</button>
+                    <button id="delete-data" class="action-btn danger">删除数据</button>
+                </div>
+            </div>
 
-      <form class="row" id="greet-form">
-        <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
-      </form>
-      <p id="greet-msg"></p>
-    </main>
-  </body>
+            <!-- 页面内容区域 -->
+            <div class="content-area">
+                <!-- 仪表盘页面 -->
+                <div class="page active" id="dashboard-page">
+                    <div class="dashboard-header">
+                        <h2>仪表盘概览</h2>
+                        <div class="kpm-display">
+                            <span class="kpm-value">0</span>
+                            <span class="kpm-label">当前 KPM</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-cards">
+                        <div class="stat-card">
+                            <h3>总按键次数</h3>
+                            <div class="stat-value">0</div>
+                            <div class="stat-trend positive">+0% 较昨日</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>今日按键</h3>
+                            <div class="stat-value">0</div>
+                            <div class="stat-trend">0 次/小时</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>平均 KPM</h3>
+                            <div class="stat-value">0</div>
+                            <div class="stat-trend negative">-0% 较昨日</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>活跃应用</h3>
+                            <div class="stat-value">0</div>
+                            <div class="stat-trend">0 个应用</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-card">
+                            <h3>按键频率趋势</h3>
+                            <div class="chart" id="kpm-trend-chart">
+                                <!-- 图表将通过JavaScript渲染 -->
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>按键类型分布</h3>
+                            <div class="chart" id="key-type-chart">
+                                <!-- 图表将通过JavaScript渲染 -->
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div class="chart-card">
+                            <h3>每日活动热力图</h3>
+                            <div class="chart" id="activity-heatmap">
+                                <!-- 图表将通过JavaScript渲染 -->
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 按键统计页面 -->
+                <div class="page" id="keyStats-page">
+                    <h2>按键统计</h2>
+                    <div class="chart-container">
+                        <div class="chart-card full-width">
+                            <h3>最常用按键 Top 10</h3>
+                            <div class="chart" id="top-keys-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-card">
+                            <h3>按键类型详细分布</h3>
+                            <div class="chart" id="key-category-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>常用组合键</h3>
+                            <div class="chart" id="key-combo-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 时间分析页面 -->
+                <div class="page" id="timeAnalysis-page">
+                    <h2>时间分析</h2>
+                    <div class="chart-container">
+                        <div class="chart-card full-width">
+                            <h3>每日按键活动</h3>
+                            <div class="chart" id="daily-activity-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-card">
+                            <h3>一天中的活动分布</h3>
+                            <div class="chart" id="hourly-distribution-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>一周中的活动分布</h3>
+                            <div class="chart" id="weekly-distribution-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 应用分析页面 -->
+                <div class="page" id="appAnalysis-page">
+                    <h2>应用分析</h2>
+                    <div class="chart-container">
+                        <div class="chart-card full-width">
+                            <h3>应用使用时间分布</h3>
+                            <div class="chart" id="app-time-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-card full-width">
+                            <h3>应用按键数量排行</h3>
+                            <div class="chart" id="app-keys-chart">
+                                <div class="placeholder-chart">图表加载中...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 健康评估页面 -->
+                <div class="page" id="healthAssessment-page">
+                    <h2>健康评估</h2>
+                    <div class="health-form">
+                        <div class="form-group">
+                            <label for="occupation">职业类型</label>
+                            <select id="occupation">
+                  <option value="">请选择...</option>
+                  <option value="programmer">程序员</option>
+                  <option value="writer">作家/编辑</option>
+                  <option value="office">办公室职员</option>
+                  <option value="designer">设计师</option>
+                  <option value="student">学生</option>
+                  <option value="other">其他</option>
+                </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="daily-hours">平均每日电脑使用时长</label>
+                            <select id="daily-hours">
+                  <option value="">请选择...</option>
+                  <option value="1-3">1-3小时</option>
+                  <option value="4-6">4-6小时</option>
+                  <option value="7-9">7-9小时</option>
+                  <option value="10+">10小时以上</option>
+                </select>
+                        </div>
+                        <button id="assess-health" class="primary-btn">评估健康风险</button>
+                    </div>
+
+                    <div class="health-result hidden">
+                        <div class="result-card">
+                            <h3>健康风险评估</h3>
+                            <p class="disclaimer">注意：此评估不构成医疗建议，仅作参考。</p>
+                            <div class="risk-level">
+                                <span class="risk-label">风险等级:</span>
+                                <span class="risk-value">低</span>
+                            </div>
+                            <p class="risk-description">根据您的使用情况，目前未发现明显健康风险。建议保持良好习惯，每小时休息5-10分钟。</p>
+                        </div>
+                    </div>
+
+                    <div class="ai-analysis">
+                        <h3>AI深度分析</h3>
+                        <p>想要获取更深入的健康分析和个性化建议？</p>
+                        <button id="ai-analysis-btn" class="primary-btn">使用AI获取深度分析报告</button>
+                    </div>
+                </div>
+
+                <!-- 设置页面 -->
+                <div class="page" id="settings-page">
+                    <h2>设置</h2>
+                    <div class="settings-container">
+                        <div class="settings-group">
+                            <h3>基本设置</h3>
+                            <div class="setting-item">
+                                <span>开机自启动</span>
+                                <label class="switch">
+                    <input type="checkbox" id="autostart-toggle">
+                    <span class="slider round"></span>
+                  </label>
+                            </div>
+                            <div class="setting-item">
+                                <span>界面主题</span>
+                                <div class="theme-selector">
+                                    <button class="theme-btn active" data-theme="light">浅色</button>
+                                    <button class="theme-btn" data-theme="dark">深色</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h3>数据管理</h3>
+                            <div class="setting-item">
+                                <span>数据存储位置</span>
+                                <div class="data-location">
+                                    <span id="data-path">C:\Users\Username\AppData\Roaming\keyboard-statistics</span>
+                                    <button id="open-data-folder" class="small-btn">打开文件夹</button>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <span>数据保留时间</span>
+                                <select id="data-retention">
+                    <option value="30">30天</option>
+                    <option value="90">90天</option>
+                    <option value="180">180天</option>
+                    <option value="365">1年</option>
+                    <option value="0">永久</option>
+                  </select>
+                            </div>
+                            <div class="danger-zone">
+                                <h4>危险区域</h4>
+                                <button id="clear-all-data" class="danger-btn">清除所有数据</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h3>关于</h3>
+                            <div class="about-info">
+                                <p>按键统计 v1.0.0</p>
+                                <p>© 2024 开源项目</p>
+                                <p><a href="#" id="view-privacy">隐私政策</a> | <a href="#" id="view-source">查看源代码</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 模态框 -->
+    <div class="modal" id="export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>导出数据</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="export-format">导出格式</label>
+                    <select id="export-format">
+              <option value="csv">CSV</option>
+              <option value="json">JSON</option>
+            </select>
+                </div>
+                <div class="form-group">
+                    <label for="export-range">时间范围</label>
+                    <select id="export-range">
+              <option value="today">今日</option>
+              <option value="week">本周</option>
+              <option value="month">本月</option>
+              <option value="all">全部数据</option>
+            </select>
+                </div>
+                <div class="form-group">
+                    <label for="export-type">数据类型</label>
+                    <select id="export-type">
+              <option value="summary">统计摘要</option>
+              <option value="raw">原始按键数据</option>
+              <option value="both">两者都包含</option>
+            </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-export" class="secondary-btn">取消</button>
+                <button id="confirm-export" class="primary-btn">导出</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="delete-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>删除数据</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p class="warning-text">警告：此操作将永久删除所选数据，且无法恢复。</p>
+                <div class="form-group">
+                    <label for="delete-range">删除范围</label>
+                    <select id="delete-range">
+              <option value="today">仅今日数据</option>
+              <option value="week">本周数据</option>
+              <option value="month">本月数据</option>
+              <option value="all">所有数据</option>
+            </select>
+                </div>
+                <div class="confirm-delete-check">
+                    <input type="checkbox" id="confirm-delete-checkbox">
+                    <label for="confirm-delete-checkbox">我了解此操作不可撤销</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-delete" class="secondary-btn">取消</button>
+                <button id="confirm-delete" class="danger-btn" disabled>删除</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="ai-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>AI分析指南</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>要获取AI深度分析报告，请按照以下步骤操作：</p>
+                <ol>
+                    <li>使用"导出数据"功能导出您的按键统计数据</li>
+                    <li>访问我们的AI分析网站：<a href="#" target="_blank">ai-analysis.example.com</a></li>
+                    <li>上传您导出的数据文件</li>
+                    <li>等待AI生成个性化分析报告</li>
+                </ol>
+                <p class="note">注意：数据上传至外部网站是您的自愿行为。请查看该网站的隐私政策了解数据处理方式。</p>
+            </div>
+            <div class="modal-footer">
+                <button id="close-ai-modal" class="secondary-btn">关闭</button>
+                <button id="go-to-export" class="primary-btn">前往导出数据</button>
+            </div>
+        </div>
+    </div>
+</body>
+
 </html>
