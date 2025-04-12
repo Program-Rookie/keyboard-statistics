@@ -237,25 +237,44 @@
                 <div class="page" id="settings-page">
                     <h2>设置</h2>
                     <div class="settings-container">
-                        <div class="settings-group">
-                            <h3>基本设置</h3>
-                            <div class="setting-item">
-                                <span>开机自启动</span>
-                                <label class="switch">
-                    <input type="checkbox" id="autostart-toggle">
-                    <span class="slider round"></span>
-                  </label>
+                        <div class="settings-section">
+                            <h3>主题设置</h3>
+                            <div class="theme-selector">
+                                <button class="theme-btn active" data-theme="light">浅色主题</button>
+                                <button class="theme-btn" data-theme="dark">深色主题</button>
                             </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>应用设置</h3>
                             <div class="setting-item">
-                                <span>界面主题</span>
-                                <div class="theme-selector">
-                                    <button class="theme-btn active" data-theme="light">浅色</button>
-                                    <button class="theme-btn" data-theme="dark">深色</button>
+                                <div class="setting-label">
+                                    <span>开机自启动</span>
+                                    <p class="setting-description">应用将在系统启动时自动运行</p>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autostart-toggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="setting-item">
+                                <div class="setting-label">
+                                    <span>退出确认</span>
+                                    <p class="setting-description">关闭窗口时显示退出确认提示</p>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="exit-confirm-toggle" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="settings-group">
+                        <div class="settings-section">
                             <h3>数据管理</h3>
                             <div class="setting-item">
                                 <span>数据存储位置</span>
@@ -274,13 +293,9 @@
                     <option value="0">永久</option>
                   </select>
                             </div>
-                            <div class="danger-zone">
-                                <h4>危险区域</h4>
-                                <button id="clear-all-data" class="danger-btn">清除所有数据</button>
-                            </div>
                         </div>
 
-                        <div class="settings-group">
+                        <div class="settings-section">
                             <h3>关于</h3>
                             <div class="about-info">
                                 <p>按键统计 v1.0.0</p>

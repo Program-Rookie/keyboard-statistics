@@ -5,9 +5,10 @@ let currentPage = 'dashboard';
 let currentTimeFilter = 'today';
 let isRecording = true;
 let isDarkTheme = false;
+let showExitConfirm = true; // 默认显示退出确认
 
 // 页面初始化
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async() => {
     // 初始化导航事件
     initNavigation();
 
@@ -20,9 +21,32 @@ window.addEventListener("DOMContentLoaded", () => {
     // 初始化模态框
     initModals();
 
+    // 初始化退出确认设置
+    await initExitConfirmSetting();
+
     // 加载模拟数据（实际项目中应从后端获取）
     loadMockData();
 });
+
+// 初始化退出确认设置
+async function initExitConfirmSetting() {
+    try {
+        // 从 Rust 后端获取设置
+        showExitConfirm = await invoke('get_exit_confirm_setting');
+    } catch (error) {
+        console.error('获取退出确认设置失败:', error);
+    }
+}
+
+// 更新退出确认设置
+async function updateExitConfirmSetting(showConfirm) {
+    try {
+        await invoke('update_exit_confirm', { showConfirm });
+        showExitConfirm = showConfirm;
+    } catch (error) {
+        console.error('更新退出确认设置失败:', error);
+    }
+}
 
 // 初始化导航
 function initNavigation() {
@@ -156,6 +180,18 @@ function initButtonEvents() {
             confirmDeleteBtn.disabled = !confirmDeleteCheckbox.checked;
         });
     }
+
+    // 退出确认设置
+    const exitConfirmToggle = document.getElementById('exit-confirm-toggle');
+    if (exitConfirmToggle) {
+        // 设置初始状态
+        exitConfirmToggle.checked = showExitConfirm;
+
+        // 添加事件监听
+        exitConfirmToggle.addEventListener('change', (e) => {
+            updateExitConfirmSetting(e.target.checked);
+        });
+    }
 }
 
 // 初始化模态框
@@ -198,6 +234,60 @@ function initModals() {
             showModal('export-modal');
         });
     }
+
+    // 创建退出确认模态框
+    createExitConfirmModal();
+}
+
+// 创建退出确认模态框
+function createExitConfirmModal() {
+    // 创建模态框容器
+    const exitConfirmModal = document.createElement('div');
+    exitConfirmModal.id = 'exit-confirm-modal';
+    exitConfirmModal.className = 'modal';
+
+    // 设置模态框内容
+    exitConfirmModal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>退出确认</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>确定要退出应用吗？</p>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="exit-no-confirm" />
+                    <label for="exit-no-confirm">不再提醒</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-exit" class="btn">取消</button>
+                <button id="confirm-exit" class="btn primary">确认</button>
+            </div>
+        </div>
+    `;
+
+    // 添加到 body
+    document.body.appendChild(exitConfirmModal);
+
+    // 添加事件监听
+    const closeBtn = exitConfirmModal.querySelector('.close-modal');
+    const cancelBtn = exitConfirmModal.querySelector('#cancel-exit');
+    const confirmBtn = exitConfirmModal.querySelector('#confirm-exit');
+    const noConfirmCheckbox = exitConfirmModal.querySelector('#exit-no-confirm');
+
+    closeBtn.addEventListener('click', () => hideModal('exit-confirm-modal'));
+    cancelBtn.addEventListener('click', () => hideModal('exit-confirm-modal'));
+
+    confirmBtn.addEventListener('click', async() => {
+        // 如果勾选了"不再提醒"，更新设置
+        if (noConfirmCheckbox.checked) {
+            await updateExitConfirmSetting(false);
+        }
+
+        // 退出应用
+        await invoke('exit_app');
+    });
 }
 
 // 显示模态框
