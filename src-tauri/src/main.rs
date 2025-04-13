@@ -118,6 +118,7 @@ fn main() {
                 .icon(app.default_window_icon().unwrap().clone()) // 使用默认图标
                 .tooltip("右键显示菜单")
                 .menu(&menu)
+                .menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => app.exit(0),
                     "show" => {
@@ -134,22 +135,28 @@ fn main() {
                     _ => println!("未知菜单项: {:?}", event.id),
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click {
-                        button: MouseButton::Left,
-                        button_state: MouseButtonState::Up,
-                        id: _,       // 添加 id 字段
-                        position: _, // 添加 position 字段
-                        rect: _,     // 添加 rect 字段
-                    } = event
-                    {
-                        // 左键点击切换窗口可见性
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = match window.is_visible().unwrap() {
-                                true => window.hide(),
-                                false => window.show(),
-                            };
+                    match event {
+                        // 右键点击时手动显示菜单
+                        TrayIconEvent::Click { 
+                            button: MouseButton::Right, 
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } => {
+                            // 在 Tauri 2.0 中，右键菜单会自动显示，不需要手动调用
                         }
+                        // 左键点击显示窗口
+                        TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } => {
+                            let app = tray.app_handle();
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        _ => {}
                     }
                 })
                 .build(app)?;
