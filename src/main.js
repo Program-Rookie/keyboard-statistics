@@ -1,4 +1,5 @@
 const { invoke } = window.__TAURI__.core;
+const { getCurrentWindow } = window.__TAURI__.window;
 
 // 全局变量
 let currentPage = 'dashboard';
@@ -6,6 +7,7 @@ let currentTimeFilter = 'today';
 let isRecording = true;
 let isDarkTheme = false;
 let showExitConfirm = true; // 默认显示退出确认
+const appWindow = getCurrentWindow();
 
 // 页面初始化
 window.addEventListener("DOMContentLoaded", async() => {
@@ -265,9 +267,12 @@ function createExitConfirmModal() {
                 </div>
                 <div class="modal-body">
                     <p>请选择操作方式：</p>
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="exit-no-confirm" />
-                        <label for="exit-no-confirm">不再提醒</label>
+                    <div class="checkbox-wrapper">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="exit-no-confirm" />
+                            <span class="checkmark"></span>
+                            不再提醒
+                        </label>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -288,23 +293,23 @@ function createExitConfirmModal() {
 
     closeBtn.addEventListener('click', () => {
         hideModal('exit-confirm-modal');
-        // 触发取消关闭事件
-        window.__TAURI__.window.getCurrent().show();
+        // 取消关闭操作
+        appWindow.show();
     });
 
-    minimizeBtn.addEventListener('click', async() => {
+    minimizeBtn.addEventListener('click', () => {
         if (noConfirmCheckbox.checked) {
-            await updateExitConfirmSetting(false);
+            updateExitConfirmSetting(false);
         }
         hideModal('exit-confirm-modal');
-        await window.__TAURI__.window.getCurrent().hide();
+        appWindow.hide();
     });
 
-    exitBtn.addEventListener('click', async() => {
+    exitBtn.addEventListener('click', () => {
         if (noConfirmCheckbox.checked) {
-            await updateExitConfirmSetting(false);
+            updateExitConfirmSetting(false);
         }
-        await invoke('exit_app');
+        invoke('exit_app');
     });
 }
 
@@ -320,6 +325,7 @@ function showModal(modalId) {
 // 隐藏模态框
 function hideModal(modalId) {
     const modal = document.getElementById(modalId);
+    console.log('尝试隐藏模态框:', modalId);
     if (modal) {
         modal.style.display = 'none';
     }

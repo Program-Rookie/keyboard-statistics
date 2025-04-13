@@ -183,6 +183,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             exit_app,
+            hide_window,
             update_exit_confirm,
             get_exit_confirm_setting
         ])
