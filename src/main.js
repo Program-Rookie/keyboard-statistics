@@ -24,6 +24,16 @@ window.addEventListener("DOMContentLoaded", async() => {
     // 初始化退出确认设置
     await initExitConfirmSetting();
 
+    // 创建退出确认模态框
+    createExitConfirmModal();
+
+    // 监听关闭对话框事件
+    const { listen } = window.__TAURI__.event;
+    await listen('show-close-dialog', () => {
+        console.log('收到关闭对话框事件');
+        showModal('exit-confirm-modal');
+    });
+
     // 加载模拟数据（实际项目中应从后端获取）
     loadMockData();
 });
@@ -234,64 +244,73 @@ function initModals() {
             showModal('export-modal');
         });
     }
-
-    // 创建退出确认模态框
-    createExitConfirmModal();
 }
 
 // 创建退出确认模态框
 function createExitConfirmModal() {
-    // 创建模态框容器
+    // 检查是否已存在
+    if (document.getElementById('exit-confirm-modal')) {
+        return;
+    }
+
     const exitConfirmModal = document.createElement('div');
     exitConfirmModal.id = 'exit-confirm-modal';
     exitConfirmModal.className = 'modal';
 
-    // 设置模态框内容
     exitConfirmModal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>退出确认</h3>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p>确定要退出应用吗？</p>
-                <div class="checkbox-container">
-                    <input type="checkbox" id="exit-no-confirm" />
-                    <label for="exit-no-confirm">不再提醒</label>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>关闭选项</h3>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>请选择操作方式：</p>
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="exit-no-confirm" />
+                        <label for="exit-no-confirm">不再提醒</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="minimize-to-tray" class="btn">最小化到托盘</button>
+                    <button id="confirm-exit" class="btn primary">完全退出</button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="cancel-exit" class="btn">取消</button>
-                <button id="confirm-exit" class="btn primary">确认</button>
-            </div>
-        </div>
-    `;
+        `;
 
-    // 添加到 body
     document.body.appendChild(exitConfirmModal);
+    console.log('退出确认模态框已创建');
 
     // 添加事件监听
     const closeBtn = exitConfirmModal.querySelector('.close-modal');
-    const cancelBtn = exitConfirmModal.querySelector('#cancel-exit');
-    const confirmBtn = exitConfirmModal.querySelector('#confirm-exit');
+    const minimizeBtn = exitConfirmModal.querySelector('#minimize-to-tray');
+    const exitBtn = exitConfirmModal.querySelector('#confirm-exit');
     const noConfirmCheckbox = exitConfirmModal.querySelector('#exit-no-confirm');
 
-    closeBtn.addEventListener('click', () => hideModal('exit-confirm-modal'));
-    cancelBtn.addEventListener('click', () => hideModal('exit-confirm-modal'));
+    closeBtn.addEventListener('click', () => {
+        hideModal('exit-confirm-modal');
+        // 触发取消关闭事件
+        window.__TAURI__.window.getCurrent().show();
+    });
 
-    confirmBtn.addEventListener('click', async() => {
-        // 如果勾选了"不再提醒"，更新设置
+    minimizeBtn.addEventListener('click', async() => {
         if (noConfirmCheckbox.checked) {
             await updateExitConfirmSetting(false);
         }
+        hideModal('exit-confirm-modal');
+        await window.__TAURI__.window.getCurrent().hide();
+    });
 
-        // 退出应用
+    exitBtn.addEventListener('click', async() => {
+        if (noConfirmCheckbox.checked) {
+            await updateExitConfirmSetting(false);
+        }
         await invoke('exit_app');
     });
 }
 
 // 显示模态框
 function showModal(modalId) {
+    console.log('尝试显示模态框:', modalId);
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'flex';

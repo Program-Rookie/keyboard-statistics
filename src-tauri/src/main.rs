@@ -12,8 +12,9 @@ use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use tauri::{AppHandle, Emitter};
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 struct AppConfig {
     show_exit_confirm: bool,
 }
@@ -27,34 +28,46 @@ struct AppState {
 impl AppState {
     fn new(app_dir: PathBuf) -> Self {
         let config_path = app_dir.join("config.json");
+        println!("配置文件路径: {:?}", config_path);
+        println!("配置文件是否存在: {}", config_path.exists());
+        
         let config = if config_path.exists() {
             match File::open(&config_path) {
                 Ok(mut file) => {
                     let mut contents = String::new();
                     if file.read_to_string(&mut contents).is_ok() {
+                        println!("读取到的配置内容: {}", contents);
                         match serde_json::from_str(&contents) {
                             Ok(config) => config,
-                            Err(_) => AppConfig::default(),
+                            Err(e) => {
+                                println!("配置解析错误: {}", e);
+                                AppConfig::default()
+                            }
                         }
                     } else {
+                        println!("读取配置文件失败");
                         AppConfig::default()
                     }
                 }
-                Err(_) => AppConfig::default(),
+                Err(e) => {
+                    println!("打开配置文件失败: {}", e);
+                    AppConfig::default()
+                }
             }
         } else {
-            // 默认第一次启动时显示退出确认
+            println!("配置文件不存在，使用默认配置");
             AppConfig {
                 show_exit_confirm: true,
             }
         };
+        
+        println!("最终使用的配置: {:?}", config);
 
         AppState {
             config: Mutex::new(config),
             config_path,
         }
     }
-
     fn save_config(&self) -> Result<(), String> {
         let config = self.config.lock().unwrap();
         let json = match serde_json::to_string_pretty(&*config) {
@@ -76,6 +89,11 @@ impl AppState {
 #[tauri::command]
 fn exit_app(app: tauri::AppHandle) {
     app.exit(0);
+}
+// 自定义命令：隐藏窗口
+#[tauri::command]
+async fn hide_window(window: tauri::WebviewWindow) {
+    let _ = window.hide();
 }
 
 // 更新退出确认设置
@@ -176,27 +194,16 @@ fn main() {
                 // 获取应用状态
                 let state = app_handle.state::<AppState>();
                 let show_confirm = state.config.lock().unwrap().show_exit_confirm;
-                
+                println!("show_confirm: {}", show_confirm);
                 if show_confirm {
                     // 阻止窗口立即关闭
                     api.prevent_close();
                     
-                    // 显示确认对话框
-                    let dialog = app_handle.dialog()
-                        .message("确定要退出应用吗？")
-                        .title("退出确认")
-                        .buttons(MessageDialogButtons::YesNo);
-                        
-                    let result = dialog.blocking_show();
-                    if result {
-                        // 用户选择是，退出应用
-                        window.close().unwrap();
-                    }
-                    
-                    // 在前端处理"不再提醒"选项，通过调用update_exit_confirm命令来更新设置
+                    // 显示选择对话框
+                    app.emit("show-close-dialog", ()).unwrap();
                 } else {
-                    // 如果设置为不显示确认，直接关闭
-                    window.close().unwrap();
+                    // TODO 如果设置为不显示确认，需要根据之前的行为决定是否关闭窗口
+                    let _ = window.hide();
                 }
             }
         })
