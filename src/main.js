@@ -300,6 +300,8 @@ function createExitConfirmModal() {
     minimizeBtn.addEventListener('click', () => {
         if (noConfirmCheckbox.checked) {
             updateExitConfirmSetting(false);
+            // 保存最小化行为
+            invoke('update_close_behavior', { minimize: true });
         }
         hideModal('exit-confirm-modal');
         appWindow.hide();
@@ -308,6 +310,8 @@ function createExitConfirmModal() {
     exitBtn.addEventListener('click', () => {
         if (noConfirmCheckbox.checked) {
             updateExitConfirmSetting(false);
+            // 保存退出行为
+            invoke('update_close_behavior', { minimize: false });
         }
         invoke('exit_app');
     });

@@ -14,9 +14,11 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 
+// 在 AppConfig 结构体中添加新字段
 #[derive(Serialize, Deserialize, Default, Debug)]
 struct AppConfig {
     show_exit_confirm: bool,
+    minimize_on_close: bool,  // 添加此字段
 }
 
 // 使用Mutex包装配置，以便在程序运行时修改
@@ -58,6 +60,7 @@ impl AppState {
             println!("配置文件不存在，使用默认配置");
             AppConfig {
                 show_exit_confirm: true,
+                minimize_on_close: true,  // 默认值
             }
         };
         
@@ -113,6 +116,17 @@ fn get_exit_confirm_setting(app: tauri::AppHandle) -> bool {
     let state = app.state::<AppState>();
     let config = state.config.lock().unwrap();
     config.show_exit_confirm
+}
+
+// 添加新的命令来更新关闭行为
+#[tauri::command]
+fn update_close_behavior(app: tauri::AppHandle, minimize: bool) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    {
+        let mut config = state.config.lock().unwrap();
+        config.minimize_on_close = minimize;
+    }
+    state.save_config()
 }
 
 fn main() {
@@ -185,7 +199,8 @@ fn main() {
             exit_app,
             hide_window,
             update_exit_confirm,
-            get_exit_confirm_setting
+            get_exit_confirm_setting,
+            update_close_behavior  // 添加新命令
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -194,17 +209,20 @@ fn main() {
                 
                 // 获取应用状态
                 let state = app_handle.state::<AppState>();
-                let show_confirm = state.config.lock().unwrap().show_exit_confirm;
-                println!("show_confirm: {}", show_confirm);
+                let config = state.config.lock().unwrap();
+                let show_confirm = config.show_exit_confirm;
+                let minimize_on_close = config.minimize_on_close;
+                
                 if show_confirm {
-                    // 阻止窗口立即关闭
                     api.prevent_close();
-                    
-                    // 显示选择对话框
                     app.emit("show-close-dialog", ()).unwrap();
                 } else {
-                    // TODO 如果设置为不显示确认，需要根据之前的行为决定是否关闭窗口
-                    let _ = window.hide();
+                    // 根据保存的行为决定是最小化还是退出
+                    if minimize_on_close {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                    // 如果 minimize_on_close 为 false，则允许窗口关闭，应用退出
                 }
             }
         })
