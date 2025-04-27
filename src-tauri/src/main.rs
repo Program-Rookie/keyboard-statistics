@@ -16,11 +16,21 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 
-// 在 AppConfig 结构体中添加新字段
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 struct AppConfig {
     show_exit_confirm: bool,
-    minimize_on_close: bool,  // 添加此字段
+    minimize_on_close: bool,
+    recording_enabled: bool, // 新增字段
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        AppConfig {
+            show_exit_confirm: true,
+            minimize_on_close: true,
+            recording_enabled: true,
+        }
+    }
 }
 
 // 使用Mutex包装配置，以便在程序运行时修改
@@ -30,6 +40,13 @@ struct AppState {
     keyboard_monitor: Mutex<KeyboardMonitor>,  // 添加键盘监听器
 }
 
+// 新增：获取当前录制状态
+#[tauri::command]
+fn get_recording_status(app: tauri::AppHandle) -> bool {
+    let state = app.state::<AppState>();
+    let config = state.config.lock().unwrap();
+    config.recording_enabled
+}
 // 添加开始监听命令
 #[tauri::command]
 async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
@@ -38,10 +55,16 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
     println!("start recording");
     if monitor.is_running() {
         monitor.resume();
-        Ok(())
     } else {
-        monitor.start()
+        monitor.start()?;
     }
+    // 持久化状态
+    {
+        let mut config = state.config.lock().unwrap();
+        config.recording_enabled = true;
+    }
+    state.save_config()?;
+    Ok(())
 }
 
 // 添加停止监听命令
@@ -51,6 +74,12 @@ async fn stop_recording(app: tauri::AppHandle) {
     let mut monitor = state.keyboard_monitor.lock().unwrap();
     monitor.stop();
     println!("stop recording");
+    // 持久化状态
+    {
+        let mut config = state.config.lock().unwrap();
+        config.recording_enabled = false;
+    }
+    let _ = state.save_config();
 }
 
 impl AppState {
@@ -87,6 +116,7 @@ impl AppState {
             AppConfig {
                 show_exit_confirm: true,
                 minimize_on_close: true,  // 默认值
+                recording_enabled: true, // 默认值
             }
         };
         
@@ -163,10 +193,15 @@ fn main() {
             let app_dir = app.path().app_data_dir().expect("无法获取应用数据目录");
             std::fs::create_dir_all(&app_dir).expect("无法创建应用数据目录");
             let app_state = AppState::new(app_dir);
-            // 启动键盘监听器
+            // 根据配置决定是否启动监听器
             {
+                let config = app_state.config.lock().unwrap();
                 let mut monitor = app_state.keyboard_monitor.lock().unwrap();
-                monitor.start().unwrap();
+                if config.recording_enabled {
+                    monitor.start().unwrap();
+                } else {
+                    monitor.stop();
+                }
             }
             app.manage(app_state);
 
@@ -233,6 +268,7 @@ fn main() {
             update_close_behavior,
             start_recording,
             stop_recording,
+            get_recording_status,
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

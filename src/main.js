@@ -17,6 +17,9 @@ window.addEventListener("DOMContentLoaded", async() => {
     // 初始化时间筛选器
     initTimeFilter();
 
+    // 初始化录制状态
+    await initRecordingStatus();
+
     // 初始化按钮事件
     initButtonEvents();
 
@@ -79,6 +82,30 @@ function initNavigation() {
             switchPage(pageId);
         });
     });
+}
+
+// 新增：初始化录制状态
+async function initRecordingStatus() {
+    const statusIndicator = document.querySelector('.status-indicator');
+    const toggleBtn = document.getElementById('toggle-recording');
+    const statusText = statusIndicator.nextElementSibling;
+
+    try {
+        isRecording = await invoke('get_recording_status');
+    } catch (error) {
+        console.error('获取录制状态失败:', error);
+        isRecording = false;
+    }
+
+    if (isRecording) {
+        statusIndicator.classList.add('active');
+        statusText.textContent = '正在记录';
+        toggleBtn.textContent = '暂停';
+    } else {
+        statusIndicator.classList.remove('active');
+        statusText.textContent = '已暂停';
+        toggleBtn.textContent = '继续';
+    }
 }
 
 // 切换页面
