@@ -7,6 +7,8 @@ use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowText
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 use windows::Win32::System::ProcessStatus::GetProcessImageFileNameW;
 use windows::Win32::Foundation::{HWND, HANDLE};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyboardEvent {
@@ -19,6 +21,7 @@ pub struct KeyboardEvent {
 pub struct KeyboardMonitor {
     sender: Option<Sender<KeyboardEvent>>,
     is_running: bool,
+    pub enabled: Arc<AtomicBool>, // 新增
 }
 
 impl KeyboardMonitor {
@@ -26,20 +29,29 @@ impl KeyboardMonitor {
         KeyboardMonitor {
             sender: None,
             is_running: false,
+            enabled: Arc::new(AtomicBool::new(true)), // 默认启用
         }
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.is_running
     }
 
     pub fn start(&mut self) -> Result<(), String> {
         if self.is_running {
+            self.resume();
             return Ok(());
         }
-
+        let enabled = self.enabled.clone();
         let (tx, rx) = channel();
         self.sender = Some(tx.clone());
         self.is_running = true;
 
         thread::spawn(move || {
             if let Err(error) = listen(move |event| {
+                if !enabled.load(Ordering::Relaxed) {
+                    return;
+                }
                 if let Event { event_type: EventType::KeyPress(key), .. } = event {
                     let (app_name, window_title) = get_active_window_info();
                     let event = KeyboardEvent {
@@ -48,6 +60,7 @@ impl KeyboardMonitor {
                         app_name,
                         window_title,
                     };
+                    println!("{:?}", event);
                     let _ = tx.send(event);
                 }
             }) {
@@ -59,8 +72,10 @@ impl KeyboardMonitor {
     }
 
     pub fn stop(&mut self) {
-        self.is_running = false;
-        self.sender = None;
+        self.enabled.store(false, Ordering::Relaxed); // 暂停统计
+    }
+    pub fn resume(&mut self) {
+        self.enabled.store(true, Ordering::Relaxed); // 恢复统计
     }
 }
 

@@ -35,7 +35,13 @@ struct AppState {
 async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
     let state = app.state::<AppState>();
     let mut monitor = state.keyboard_monitor.lock().unwrap();
-    monitor.start()
+    println!("start recording");
+    if monitor.is_running() {
+        monitor.resume();
+        Ok(())
+    } else {
+        monitor.start()
+    }
 }
 
 // 添加停止监听命令
@@ -149,7 +155,6 @@ fn update_close_behavior(app: tauri::AppHandle, minimize: bool) -> Result<(), St
     }
     state.save_config()
 }
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -158,6 +163,11 @@ fn main() {
             let app_dir = app.path().app_data_dir().expect("无法获取应用数据目录");
             std::fs::create_dir_all(&app_dir).expect("无法创建应用数据目录");
             let app_state = AppState::new(app_dir);
+            // 启动键盘监听器
+            {
+                let mut monitor = app_state.keyboard_monitor.lock().unwrap();
+                monitor.start().unwrap();
+            }
             app.manage(app_state);
 
             // 创建托盘菜单
