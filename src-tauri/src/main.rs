@@ -1,6 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod keyboard;
+use keyboard::KeyboardMonitor;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -25,6 +27,24 @@ struct AppConfig {
 struct AppState {
     config: Mutex<AppConfig>,
     config_path: PathBuf,
+    keyboard_monitor: Mutex<KeyboardMonitor>,  // 添加键盘监听器
+}
+
+// 添加开始监听命令
+#[tauri::command]
+async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let mut monitor = state.keyboard_monitor.lock().unwrap();
+    monitor.start()
+}
+
+// 添加停止监听命令
+#[tauri::command]
+async fn stop_recording(app: tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    let mut monitor = state.keyboard_monitor.lock().unwrap();
+    monitor.stop();
+    println!("stop recording");
 }
 
 impl AppState {
@@ -69,6 +89,7 @@ impl AppState {
         AppState {
             config: Mutex::new(config),
             config_path,
+            keyboard_monitor: Mutex::new(KeyboardMonitor::new()),
         }
     }
     fn save_config(&self) -> Result<(), String> {
@@ -192,7 +213,6 @@ fn main() {
                     }
                 })
                 .build(app)?;
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -200,7 +220,9 @@ fn main() {
             hide_window,
             update_exit_confirm,
             get_exit_confirm_setting,
-            update_close_behavior  // 添加新命令
+            update_close_behavior,
+            start_recording,
+            stop_recording,
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

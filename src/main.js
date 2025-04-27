@@ -283,7 +283,7 @@ function createExitConfirmModal() {
         `;
 
     document.body.appendChild(exitConfirmModal);
-    console.log('退出确认模态框已创建');
+    // console.log('退出确认模态框已创建');
 
     // 添加事件监听
     const closeBtn = exitConfirmModal.querySelector('.close-modal');
@@ -363,7 +363,7 @@ async function toggleRecording() {
 
         // 调用后端API暂停记录
         try {
-            await invoke('pause_recording');
+            await invoke('stop_recording');
         } catch (error) {
             console.error('暂停记录失败:', error);
         }
