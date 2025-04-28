@@ -197,6 +197,7 @@ fn main() {
             {
                 let config = app_state.config.lock().unwrap();
                 let mut monitor = app_state.keyboard_monitor.lock().unwrap();
+                monitor.set_app_handle(app.handle().clone());
                 if config.recording_enabled {
                     monitor.start().unwrap();
                 } else {

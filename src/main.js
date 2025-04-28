@@ -1,5 +1,6 @@
 const { invoke } = window.__TAURI__.core;
-const { getCurrentWindow } = window.__TAURI__.window;
+const { getCurrentWindow, currentMonitor } = window.__TAURI__.window;
+const { WebviewWindow } = window.__TAURI__.webviewWindow;
 
 // 全局变量
 let currentPage = 'dashboard';
@@ -41,7 +42,45 @@ window.addEventListener("DOMContentLoaded", async() => {
 
     // 加载模拟数据（实际项目中应从后端获取）
     loadMockData();
+    // 初始化overlay窗口
+    createOverlayWindow();
 });
+
+// 初始化overlay窗口
+function createOverlayWindow() {
+    console.log('尝试创建overlay窗口');
+    const monitor = currentMonitor();
+    monitor.then((monitor) => {
+        console.log('当前显示器信息:', monitor);
+        const winWidth = 300;
+        const winHeight = 80;
+        // 右下角，距离边缘20像素
+        const x = monitor.size.width - winWidth - 80;
+        const y = monitor.size.height - winHeight - 80;
+        const popup = new WebviewWindow('key_popup', {
+            url: 'key_popup.html',
+            transparent: true, // 设置为透明
+            decorations: false,
+            alwaysOnTop: true,
+            skipTaskbar: true,
+            resizable: true,
+            width: winWidth,
+            height: winHeight,
+            x: x,
+            y: y,
+            visible: true, // 初始可见
+            focus: false // 不获取焦点
+        });
+        popup.once('tauri://created', function() {
+            // webview successfully created
+            console.log('webview 已成功创建');
+        });
+        popup.once('tauri://error', function(e) {
+            // an error happened creating the webview
+            console.error('创建 webview 时发生错误:', e);
+        });
+    });
+}
 
 // 初始化退出确认设置
 async function initExitConfirmSetting() {
