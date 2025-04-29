@@ -10,6 +10,7 @@ use windows::Win32::Foundation::{HWND, HANDLE};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
+use std::collections::HashSet;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyboardEvent {
@@ -22,8 +23,9 @@ pub struct KeyboardEvent {
 pub struct KeyboardMonitor {
     sender: Option<Sender<KeyboardEvent>>,
     is_running: bool,
-    pub enabled: Arc<AtomicBool>, // 新增
-    app_handle: Option<AppHandle>, // 添加 AppHandle 用于发送事件
+    pub enabled: Arc<AtomicBool>,
+    app_handle: Option<AppHandle>,
+    pressed_keys: Arc<std::sync::Mutex<HashSet<String>>>, // 新增
 }
 
 impl KeyboardMonitor {
@@ -31,8 +33,9 @@ impl KeyboardMonitor {
         KeyboardMonitor {
             sender: None,
             is_running: false,
-            enabled: Arc::new(AtomicBool::new(true)), // 默认启用
+            enabled: Arc::new(AtomicBool::new(true)),
             app_handle: None,
+            pressed_keys: Arc::new(std::sync::Mutex::new(HashSet::new())), // 新增
         }
     }
     // 设置 AppHandle
@@ -54,32 +57,48 @@ impl KeyboardMonitor {
         self.sender = Some(tx.clone());
         self.is_running = true;
 
-        // 克隆 AppHandle 用于在线程中使用
         let app_handle = self.app_handle.clone();
+        let pressed_keys = self.pressed_keys.clone(); // 新增
 
         thread::spawn(move || {
             if let Err(error) = listen(move |event| {
                 if !enabled.load(Ordering::Relaxed) {
                     return;
                 }
-                if let Event { event_type: EventType::KeyPress(key), .. } = event {
-                    let (app_name, window_title) = get_active_window_info();
-                    let key_code = format!("{:?}", key);
-                    let event = KeyboardEvent {
-                        timestamp: Local::now(),
-                        key_code: key_code.clone(),
-                        app_name,
-                        window_title,
-                    };
-                    println!("{:?}", event);
-                    let _ = tx.send(event);
+                match event.event_type {
+                    EventType::KeyPress(key) => {
+                        let key_code = format!("{:?}", key);
+                        let mut keys = pressed_keys.lock().unwrap();
+                        // 如果已经按下则不重复记录
+                        if !keys.insert(key_code.clone()) {
+                            return;
+                        }
+                        let (app_name, window_title) = get_active_window_info();
+                        // 组合键字符串
+                        let mut keys_vec: Vec<_> = keys.iter().cloned().collect();
+                        keys_vec.sort();
+                        let combo = keys_vec.join("+");
+                        let event = KeyboardEvent {
+                            timestamp: Local::now(),
+                            key_code: combo.clone(),
+                            app_name,
+                            window_title,
+                        };
+                        println!("{:?}", event);
+                        let _ = tx.send(event);
 
-                    // 发送事件到前端
-                    if let Some(handle) = &app_handle {
-                        let result = handle.emit_to("key_popup", "key-pressed", KeyPressedPayload {
-                            key_code,
-                        });
+                        if let Some(handle) = &app_handle {
+                            let result = handle.emit_to("key_popup", "key-pressed", KeyPressedPayload {
+                                key_code: combo,
+                            });
+                        }
                     }
+                    EventType::KeyRelease(key) => {
+                        let key_code = format!("{:?}", key);
+                        let mut keys = pressed_keys.lock().unwrap();
+                        keys.remove(&key_code);
+                    }
+                    _ => {}
                 }
             }) {
                 println!("键盘监听错误: {:?}", error);
