@@ -12,9 +12,11 @@ listen('key-pressed', event => {
     });
     popup.textContent = event.payload.key_code;
     popup.classList.add('show');
+    popup.classList.add('pressed');
     clearTimeout(hideTimeout);
     hideTimeout = setTimeout(() => {
         popup.classList.remove('show');
+        popup.classList.remove('pressed');
         // 在按键效果消失后再隐藏窗口
         setTimeout(() => {
             console.log("currentWindow ", currentWindow);
@@ -23,7 +25,7 @@ listen('key-pressed', event => {
                     window.hide();
                 }
             });
-        }, 200); // 等待淡出动画完成
+        }, 300); // 等待淡出动画完成
     }, 800);
 });
 // 添加调试代码，确认脚本已加载

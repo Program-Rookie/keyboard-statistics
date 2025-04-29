@@ -35,21 +35,58 @@
             height: 100%;
             min-width: 80px;
             min-height: 40px;
-            background: rgba(50, 50, 50, 0.85);
-            color: #fff;
-            border-radius: 8px;
+            background: linear-gradient(180deg, #5a5a5a 0%, #232323 100%);
+            color: #ffffff;
+            border-radius: 22px;
             font-size: 2rem;
+            font-family: 'Consolas', 'Menlo', 'Monaco', 'monospace', sans-serif;
+            font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity 0.18s, transform 0.18s cubic-bezier(.4,2,.6,1), box-shadow 0.18s, filter 0.18s;
             pointer-events: none;
-            /* 确保弹窗不接收鼠标事件 */
+            /* 强化外部阴影和内阴影 */
+            box-shadow:
+                0 8px 24px 2px rgba(0,0,0,0.55),
+                0 2px 0 0 #181818,
+                inset 0 2px 18px rgba(255,255,255,0.18),
+                inset 0 -3px 18px rgba(0,0,0,0.32);
+            letter-spacing: 0.05em;
+            position: relative;
+            overflow: hidden;
         }
-        
+        #popup::before {
+            content: "";
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 22%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.02) 100%);
+            border-radius: 14px 14px 40% 40%;
+            pointer-events: none;
+            z-index: 1;
+        }
         #popup.show {
             opacity: 1;
+            transform: scale(1.15);
+            filter: brightness(1.08);
+            box-shadow:
+                0 18px 48px 6px rgba(0,0,0,0.70),
+                0 4px 0 0 #181818,
+                inset 0 4px 24px rgba(255,255,255,0.22),
+                inset 0 -6px 24px rgba(0,0,0,0.38);
+        }
+        #popup.pressed {
+            transform: scale(0.88);
+            filter: brightness(0.92);
+            box-shadow:
+                0 1px 2px 0px rgba(0,0,0,0.25),
+                0 0.5px 0 0 #181818,
+                inset 0 0.5px 4px rgba(255,255,255,0.08),
+                inset 0 -1.5px 4px rgba(0,0,0,0.18);
         }
     </style>
     <!-- 添加预加载脚本，确保背景透明 -->
