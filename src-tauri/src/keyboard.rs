@@ -1,4 +1,5 @@
 use rdev::{listen, Event, EventType};
+use rdev::Key::*;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
 use serde::{Serialize, Deserialize};
@@ -67,16 +68,13 @@ impl KeyboardMonitor {
                 }
                 match event.event_type {
                     EventType::KeyPress(key) => {
-                        let key_code = format!("{:?}", key);
+                        let key_code = key_to_string(&key);
                         let mut keys = pressed_keys.lock().unwrap();
-                        // 如果已经按下则不重复记录
                         if !keys.insert(key_code.clone()) {
                             return;
                         }
                         let (app_name, window_title) = get_active_window_info();
-                        // 组合键字符串
                         let mut keys_vec: Vec<_> = keys.iter().cloned().collect();
-                        keys_vec.sort();
                         let combo = keys_vec.join("+");
                         let event = KeyboardEvent {
                             timestamp: Local::now(),
@@ -94,7 +92,7 @@ impl KeyboardMonitor {
                         }
                     }
                     EventType::KeyRelease(key) => {
-                        let key_code = format!("{:?}", key);
+                        let key_code = key_to_string(&key);
                         let mut keys = pressed_keys.lock().unwrap();
                         keys.remove(&key_code);
                     }
@@ -151,5 +149,83 @@ fn get_active_window_info() -> (String, String) {
         }
 
         (process_name, window_title)
+    }
+}
+
+fn key_to_string(key: &rdev::Key) -> String {
+    let key_str = format!("{:?}", key);
+    match key_str.as_str() {
+        // 系统功能键
+        "ControlLeft" | "ControlRight" => "Ctrl".to_string(),
+        "ShiftLeft" | "ShiftRight" => "Shift".to_string(),
+        "MetaLeft" | "MetaRight" => "Win".to_string(),
+        "Alt" | "AltGr" => "Alt".to_string(),
+        "AltGr" => "AltGr".to_string(),
+        "Enter" | "Return" => "Enter".to_string(),
+        "Space" => "Space".to_string(),
+        "Tab" => "Tab".to_string(),
+        "Backspace" => "Backspace".to_string(),
+        "CapsLock" => "CapsLock".to_string(),
+        "Escape" => "Esc".to_string(),
+
+        // 导航键
+        "UpArrow" => "↑".to_string(),
+        "DownArrow" => "↓".to_string(),
+        "LeftArrow" => "←".to_string(),
+        "RightArrow" => "→".to_string(),
+        "Home" => "Home".to_string(),
+        "End" => "End".to_string(),
+        "PageUp" => "PageUp".to_string(),
+        "PageDown" => "PageDown".to_string(),
+        "Insert" => "Insert".to_string(),
+        "Delete" => "Delete".to_string(),
+
+        // 锁定键
+        "NumLock" => "NumLock".to_string(),
+        "ScrollLock" => "ScrollLock".to_string(),
+        "PrintScreen" => "PrintScreen".to_string(),
+        "Pause" => "Pause".to_string(),
+
+        // 字母键
+        s if s.starts_with("Key") => s[3..].to_string(),
+
+        // 数字键
+        s if s.starts_with("Num") && s.len() == 4 => s[3..].to_string(),
+
+        // 符号键
+        "BackQuote" => "`".to_string(),
+        "Minus" => "-".to_string(),
+        "Equal" => "=".to_string(),
+        "LeftBracket" => "[".to_string(),
+        "RightBracket" => "]".to_string(),
+        "Semicolon" => ";".to_string(),
+        "BackSlash" => "\\".to_string(),
+        "Quote" => "'".to_string(),
+        "Comma" => ",".to_string(),
+        "Period" => ".".to_string(),
+        "Slash" => "/".to_string(),
+        "Grave" => "`".to_string(),
+
+        // 小键盘
+        "Numpad0" => "0".to_string(),
+        "Numpad1" => "1".to_string(),
+        "Numpad2" => "2".to_string(),
+        "Numpad3" => "3".to_string(),
+        "Numpad4" => "4".to_string(),
+        "Numpad5" => "5".to_string(),
+        "Numpad6" => "6".to_string(),
+        "Numpad7" => "7".to_string(),
+        "Numpad8" => "8".to_string(),
+        "Numpad9" => "9".to_string(),
+        "KpPlus" => "+".to_string(),
+        "KpMinus" => "-".to_string(),
+        "KpMultiply" => "*".to_string(),
+        "KpDivide" => "/".to_string(),
+        "NumpadDecimal" => ".".to_string(),
+        "NumpadEnter" => "Enter".to_string(),
+        "Unknown(12)" => "5".to_string(), // 未知按键，可能是 "5" 键
+
+        // 未知按键保留原始名称
+        _ => key_str
     }
 }
