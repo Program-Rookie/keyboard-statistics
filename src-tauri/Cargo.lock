@@ -1966,6 +1966,7 @@ name = "keyboard-statistics"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "indexmap 2.9.0",
  "rdev",
  "serde",
  "serde_json",

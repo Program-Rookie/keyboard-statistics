@@ -11,7 +11,7 @@ use windows::Win32::Foundation::{HWND, HANDLE};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
-use std::collections::HashSet;
+use indexmap::IndexSet;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyboardEvent {
@@ -26,7 +26,7 @@ pub struct KeyboardMonitor {
     is_running: bool,
     pub enabled: Arc<AtomicBool>,
     app_handle: Option<AppHandle>,
-    pressed_keys: Arc<std::sync::Mutex<HashSet<String>>>, // 新增
+    pressed_keys: Arc<std::sync::Mutex<IndexSet<String>>>, // 新增
 }
 
 impl KeyboardMonitor {
@@ -36,7 +36,7 @@ impl KeyboardMonitor {
             is_running: false,
             enabled: Arc::new(AtomicBool::new(true)),
             app_handle: None,
-            pressed_keys: Arc::new(std::sync::Mutex::new(HashSet::new())), // 新增
+            pressed_keys: Arc::new(std::sync::Mutex::new(IndexSet::new())), // 新增
         }
     }
     // 设置 AppHandle
