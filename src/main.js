@@ -53,7 +53,7 @@ function createOverlayWindow() {
     monitor.then((monitor) => {
         console.log('当前显示器信息:', monitor);
         const winWidth = 300;
-        const winHeight = 80;
+        const winHeight = monitor.size.height - 80;
         const x = 80;
         const y = monitor.size.height - winHeight - 80;
         const popup = new WebviewWindow('key_popup', {

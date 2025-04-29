@@ -206,7 +206,7 @@ fn key_to_string(key: &rdev::Key) -> String {
         "BackSlash" => "\\".to_string(),
         "Quote" => "'".to_string(),
         "Comma" => ",".to_string(),
-        "Period" => ".".to_string(),
+        "Dot" => ".".to_string(),
         "Slash" => "/".to_string(),
         "Grave" => "`".to_string(),
 

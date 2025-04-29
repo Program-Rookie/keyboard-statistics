@@ -1,31 +1,44 @@
 const { listen } = window.__TAURI__.event;
 const { WebviewWindow } = window.__TAURI__.webviewWindow;
-const popup = document.getElementById('popup');
-let hideTimeout = null;
+const popupContainer = document.getElementById('popup-container');
 // 获取当前窗口
 const currentWindow = WebviewWindow.getByLabel('key_popup');
+
 listen('key-pressed', event => {
     currentWindow.then((window) => {
         if (window) {
             window.show();
         }
     });
+
+    // 创建新的popup元素
+    const popup = document.createElement('div');
+    popup.className = 'popup show pressed';
     popup.textContent = event.payload.key_code;
-    popup.classList.add('show');
-    popup.classList.add('pressed');
-    clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(() => {
-        popup.classList.remove('show');
+    popupContainer.appendChild(popup);
+
+    // 动画：pressed -> show
+    setTimeout(() => {
         popup.classList.remove('pressed');
-        在按键效果消失后再隐藏窗口
+    }, 280);
+
+    // 淡出并移除
+    setTimeout(() => {
+        popup.classList.remove('show');
+        // 动画结束后移除节点
         setTimeout(() => {
-            currentWindow.then((window) => {
-                if (window) {
-                    window.hide();
-                }
-            });
-        }, 11300); // 等待淡出动画完成
-    }, 11800);
+            popupContainer.removeChild(popup);
+            // 如果没有popup了，隐藏窗口
+            if (popupContainer.children.length === 0) {
+                currentWindow.then((window) => {
+                    if (window) {
+                        window.hide();
+                    }
+                });
+            }
+        }, 300);
+    }, 1200); // 每个popup显示1.2秒
 });
+
 // 添加调试代码，确认脚本已加载
 console.log('key_popup.js 已加载');
