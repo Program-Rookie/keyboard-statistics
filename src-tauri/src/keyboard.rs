@@ -71,11 +71,12 @@ impl KeyboardMonitor {
                         let key_code = key_to_string(&key);
                         let mut keys = pressed_keys.lock().unwrap();
                         let has_modifier = keys.iter().any(|k| matches!(k.as_str(), "Ctrl" | "Shift" | "Alt" | "Win"));
-                        if (!has_modifier) {
-                            keys.clear();
-                        }
                         if !keys.insert(key_code.clone()) {
                             return;
+                        }
+                        if (!has_modifier) {
+                            keys.clear();
+                            keys.insert(key_code.clone());
                         }
                         let (app_name, window_title) = get_active_window_info();
                         let mut keys_vec: Vec<_> = keys.iter().cloned().collect();
@@ -202,7 +203,7 @@ fn key_to_string(key: &rdev::Key) -> String {
         "Equal" => "=".to_string(),
         "LeftBracket" => "[".to_string(),
         "RightBracket" => "]".to_string(),
-        "Semicolon" => ";".to_string(),
+        "SemiColon" => ";".to_string(),
         "BackSlash" => "\\".to_string(),
         "Quote" => "'".to_string(),
         "Comma" => ",".to_string(),
