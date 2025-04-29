@@ -17,17 +17,15 @@ listen('key-pressed', event => {
     hideTimeout = setTimeout(() => {
         popup.classList.remove('show');
         popup.classList.remove('pressed');
-        // 在按键效果消失后再隐藏窗口
+        在按键效果消失后再隐藏窗口
         setTimeout(() => {
-            console.log("currentWindow ", currentWindow);
             currentWindow.then((window) => {
                 if (window) {
                     window.hide();
                 }
             });
-        }, 300); // 等待淡出动画完成
-    }, 800);
+        }, 11300); // 等待淡出动画完成
+    }, 11800);
 });
 // 添加调试代码，确认脚本已加载
 console.log('key_popup.js 已加载');
-console.log(window.isIgnoreCursorEvents())
