@@ -54,8 +54,7 @@ function createOverlayWindow() {
         console.log('当前显示器信息:', monitor);
         const winWidth = 300;
         const winHeight = 80;
-        // 右下角，距离边缘20像素
-        const x = monitor.size.width - winWidth - 80;
+        const x = 80;
         const y = monitor.size.height - winHeight - 80;
         const popup = new WebviewWindow('key_popup', {
             url: 'key_popup.html',
@@ -68,12 +67,18 @@ function createOverlayWindow() {
             height: winHeight,
             x: x,
             y: y,
-            visible: true, // 初始可见
-            focus: false // 不获取焦点
+            visible: false,
+            focus: false, // 不获取焦点
+            theme: 'dark',
+            shadow: false,
+            acceptFirstMouse: false
         });
         popup.once('tauri://created', function() {
             // webview successfully created
             console.log('webview 已成功创建');
+            popup.setBackgroundColor({ r: 0, g: 0, b: 0, a: 0 });
+            // 设置窗口忽略鼠标事件，允许点击穿透
+            popup.setIgnoreCursorEvents(true);
         });
         popup.once('tauri://error', function(e) {
             // an error happened creating the webview
