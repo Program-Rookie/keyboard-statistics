@@ -70,6 +70,10 @@ impl KeyboardMonitor {
                     EventType::KeyPress(key) => {
                         let key_code = key_to_string(&key);
                         let mut keys = pressed_keys.lock().unwrap();
+                        let has_modifier = keys.iter().any(|k| matches!(k.as_str(), "Ctrl" | "Shift" | "Alt" | "Win"));
+                        if (!has_modifier) {
+                            keys.clear();
+                        }
                         if !keys.insert(key_code.clone()) {
                             return;
                         }
