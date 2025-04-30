@@ -12,6 +12,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use indexmap::IndexSet;
+use crate::database::{init_db, insert_event, KeyboardEventRecord};
+use std::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyboardEvent {
@@ -27,6 +29,7 @@ pub struct KeyboardMonitor {
     pub enabled: Arc<AtomicBool>,
     app_handle: Option<AppHandle>,
     pressed_keys: Arc<std::sync::Mutex<IndexSet<String>>>, // 新增
+    db_conn: Option<Arc<Mutex<rusqlite::Connection>>>, // 新增，持有数据库连接
 }
 
 impl KeyboardMonitor {
@@ -37,6 +40,7 @@ impl KeyboardMonitor {
             enabled: Arc::new(AtomicBool::new(true)),
             app_handle: None,
             pressed_keys: Arc::new(std::sync::Mutex::new(IndexSet::new())), // 新增
+            db_conn: None, // 新增
         }
     }
     // 设置 AppHandle
@@ -60,6 +64,20 @@ impl KeyboardMonitor {
 
         let app_handle = self.app_handle.clone();
         let pressed_keys = self.pressed_keys.clone(); // 新增
+
+        // 初始化数据库连接，只初始化一次
+        if self.db_conn.is_none() {
+            let db_path = "keyboard_events.db";
+            let conn = match crate::database::init_db(db_path) {
+                Ok(c) => Arc::new(Mutex::new(c)),
+                Err(e) => {
+                    println!("数据库初始化失败: {:?}", e);
+                    return Err("数据库初始化失败".to_string());
+                }
+            };
+            self.db_conn = Some(conn.clone());
+        }
+        let db_conn = self.db_conn.as_ref().unwrap().clone();
 
         thread::spawn(move || {
             if let Err(error) = listen(move |event| {
@@ -88,7 +106,18 @@ impl KeyboardMonitor {
                             window_title,
                         };
                         println!("{:?}", event);
-                        let _ = tx.send(event);
+                        let _ = tx.send(event.clone());
+                        // 使用全局数据库连接
+                        let record = KeyboardEventRecord {
+                            timestamp: event.timestamp,
+                            key_code: event.key_code.clone(),
+                            app_name: event.app_name.clone(),
+                            window_title: event.window_title.clone(),
+                        };
+                        let conn = db_conn.lock().unwrap();
+                        if let Err(e) = crate::database::insert_event(&conn, &record) {
+                            println!("插入数据库失败: {:?}", e);
+                        }
 
                         if let Some(handle) = &app_handle {
                             let result = handle.emit_to("key_popup", "key-pressed", KeyPressedPayload {

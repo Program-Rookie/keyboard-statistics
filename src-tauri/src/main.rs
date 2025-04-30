@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod keyboard;
+pub mod database;
 use keyboard::KeyboardMonitor;
 use tauri::{
     menu::{Menu, MenuItem},
