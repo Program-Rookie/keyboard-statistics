@@ -200,6 +200,9 @@ function initButtonEvents() {
         toggleRecordingBtn.addEventListener('click', toggleRecording);
     }
 
+    // 信息图标提示框初始化
+    initInfoIcons();
+
     // 导出数据按钮
     const exportBtn = document.getElementById('export-data');
     if (exportBtn) {
@@ -723,12 +726,26 @@ function updateStatsCards(stats) {
         // 更新总按键次数
         statValues[0].textContent = stats.total_presses.toLocaleString();
 
-        // 假设比前一天增加1.5%（实际应从后端获取）
-        statTrends[0].textContent = '+1.5% 较昨日';
-        statTrends[0].className = 'stat-trend positive';
+        // 总按键较上一周期的变化
+        if (currentTimeFilter !== 'all' && stats.prev_total_presses > 0) {
+            const totalChangePercent = ((stats.total_presses - stats.prev_total_presses) / stats.prev_total_presses * 100).toFixed(1);
+            if (totalChangePercent > 0) {
+                statTrends[0].textContent = `+${totalChangePercent}% 较上个周期`;
+                statTrends[0].className = 'stat-trend positive';
+            } else if (totalChangePercent < 0) {
+                statTrends[0].textContent = `${totalChangePercent}% 较上个周期`;
+                statTrends[0].className = 'stat-trend negative';
+            } else {
+                statTrends[0].textContent = `持平 较上个周期`;
+                statTrends[0].className = 'stat-trend';
+            }
+        } else {
+            statTrends[0].textContent = '无前一周期数据';
+            statTrends[0].className = 'stat-trend';
+        }
 
         // 更新今日按键（按照当前时间范围的数据比例估算）
-        const todayKeys = Math.floor(stats.total_presses * 0.25);
+        const todayKeys = Math.floor(stats.total_presses);
         statValues[1].textContent = todayKeys.toLocaleString();
 
         // 计算每小时按键数
@@ -737,13 +754,44 @@ function updateStatsCards(stats) {
         // 更新平均KPM（使用avg_kpm字段）
         statValues[2].textContent = stats.avg_kpm.toFixed(1);
 
-        // KPM变化趋势（仅演示）
-        statTrends[2].textContent = '-0.5% 较昨日';
-        statTrends[2].className = 'stat-trend negative';
+        // 平均KPM较上一周期的变化
+        if (currentTimeFilter !== 'all' && stats.prev_avg_kpm > 0) {
+            const kpmChangePercent = ((stats.avg_kpm - stats.prev_avg_kpm) / stats.prev_avg_kpm * 100).toFixed(1);
+            if (kpmChangePercent > 0) {
+                statTrends[2].textContent = `+${kpmChangePercent}% 较上个周期`;
+                statTrends[2].className = 'stat-trend positive';
+            } else if (kpmChangePercent < 0) {
+                statTrends[2].textContent = `${kpmChangePercent}% 较上个周期`;
+                statTrends[2].className = 'stat-trend negative';
+            } else {
+                statTrends[2].textContent = `持平 较上个周期`;
+                statTrends[2].className = 'stat-trend';
+            }
+        } else {
+            statTrends[2].textContent = '无前一周期数据';
+            statTrends[2].className = 'stat-trend';
+        }
 
         // 更新退格率
         statValues[3].textContent = stats.backspace_ratio.toFixed(1) + '%';
-        statTrends[3].textContent = '按键中的退格比例';
+
+        // 退格率较上一周期的变化
+        if (currentTimeFilter !== 'all' && stats.prev_backspace_ratio > 0) {
+            const backspaceChangePercent = ((stats.backspace_ratio - stats.prev_backspace_ratio) / stats.prev_backspace_ratio * 100).toFixed(1);
+            if (backspaceChangePercent > 0) {
+                statTrends[3].textContent = `+${backspaceChangePercent}% 较上个周期`;
+                statTrends[3].className = 'stat-trend negative'; // 退格率上升通常是负面的
+            } else if (backspaceChangePercent < 0) {
+                statTrends[3].textContent = `${backspaceChangePercent}% 较上个周期`;
+                statTrends[3].className = 'stat-trend positive'; // 退格率下降通常是正面的
+            } else {
+                statTrends[3].textContent = `持平 较上个周期`;
+                statTrends[3].className = 'stat-trend';
+            }
+        } else {
+            statTrends[3].textContent = '删除键占总按键比例';
+            statTrends[3].className = 'stat-trend';
+        }
 
         // 更新活跃应用数量
         statValues[4].textContent = Object.keys(stats.app_usage).length;
@@ -1014,21 +1062,30 @@ function updateKpmTrendChart(stats) {
     newCanvas.style.height = '100%';
     chartElement.appendChild(newCanvas);
 
-    // 生成最近24小时的数据
+    // 生成最近24小时的活动数据
     const labels = [];
     const data = [];
-    const now = new Date();
+
+    // 使用实际时间分布数据
     const timeDistribution = stats.time_distribution || {};
+    const hours = Object.keys(timeDistribution).sort();
 
-    // 使用时间分布数据生成趋势图数据
-    for (let i = 0; i < 24; i++) {
-        const hour = (now.getHours() - 24 + i + 24) % 24;
-        labels.push(`${hour}:00`);
-
-        // 使用实际数据，没有则默认为0
-        const hourKey = hour.toString().padStart(2, '0');
-        const value = timeDistribution[hourKey] || 0;
-        data.push(value);
+    // 如果有数据，使用实际数据的小时
+    if (hours.length > 0) {
+        for (const hour of hours) {
+            const hourInt = parseInt(hour);
+            if (!isNaN(hourInt)) {
+                labels.push(`${hour}:00`);
+                data.push(timeDistribution[hour]);
+            }
+        }
+    } else {
+        // 如果没有数据，显示空图表
+        for (let i = 0; i < 24; i++) {
+            const hour = i.toString().padStart(2, '0');
+            labels.push(`${hour}:00`);
+            data.push(0);
+        }
     }
 
     // 创建图表
@@ -1073,7 +1130,7 @@ function updateKpmTrendChart(stats) {
                         display: false,
                     },
                     ticks: {
-                        maxTicksLimit: 6,
+                        maxTicksLimit: Math.min(labels.length, 12),
                     }
                 }
             }
@@ -1150,8 +1207,17 @@ function updateActivityHeatmap(stats) {
     heatmapGrid.style.flexDirection = 'column';
     mainContent.appendChild(heatmapGrid);
 
-    // 生成热力图数据
+    // 获取实际时间分布数据
     const timeDistribution = stats.time_distribution || {};
+
+    // 找出最大值用于计算颜色强度
+    let maxValue = 0;
+    Object.values(timeDistribution).forEach(val => {
+        if (val > maxValue) maxValue = val;
+    });
+
+    // 如果maxValue为0，设置一个默认值以避免除以0
+    maxValue = maxValue || 1000;
 
     // 为每一天创建一行
     for (let day = 0; day < 7; day++) {
@@ -1165,13 +1231,23 @@ function updateActivityHeatmap(stats) {
         // 为每个小时创建一个单元格
         for (let hour = 0; hour < 24; hour++) {
             const hourKey = hour.toString().padStart(2, '0');
+            const dayKey = `d${day}`; // 假设后端有按天统计的数据
 
-            // 使用实际数据，没有则默认为0，不再生成随机值
-            const baseValue = timeDistribution[hourKey] || 0;
-            const value = baseValue;
+            // 从实际数据获取值
+            let value = 0;
 
-            // 计算颜色强度 (0.1-0.8)，按实际数据值计算
-            const intensity = value > 0 ? Math.min(0.8, Math.max(0.1, value / 1000)) : 0.1;
+            // 先尝试获取特定天的特定小时数据
+            if (timeDistribution[`${dayKey}_${hourKey}`]) {
+                value = timeDistribution[`${dayKey}_${hourKey}`];
+            }
+            // 如果没有特定天的数据，尝试只按小时统计的数据
+            else if (timeDistribution[hourKey]) {
+                // 将总量平均分配到7天
+                value = Math.floor(timeDistribution[hourKey] / 7);
+            }
+
+            // 计算颜色强度 (0.1-0.8)
+            const intensity = value > 0 ? Math.min(0.8, Math.max(0.1, value / maxValue * 0.8)) : 0.05;
 
             // 创建一个单元格
             const cell = document.createElement('div');
@@ -1185,6 +1261,69 @@ function updateActivityHeatmap(stats) {
             dayRow.appendChild(cell);
         }
     }
+}
+
+// 初始化信息图标提示框
+function initInfoIcons() {
+    // 创建提示框元素
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    document.body.appendChild(tooltip);
+
+    // 获取所有信息图标
+    const infoIcons = document.querySelectorAll('.info-icon');
+
+    infoIcons.forEach(icon => {
+        // 鼠标悬停显示提示框
+        icon.addEventListener('mouseenter', (e) => {
+            const info = e.target.getAttribute('data-info');
+            if (!info) return;
+
+            tooltip.textContent = info;
+            tooltip.classList.add('show');
+
+            // 计算位置
+            const rect = e.target.getBoundingClientRect();
+            const tooltipHeight = tooltip.offsetHeight;
+            const tooltipWidth = tooltip.offsetWidth;
+
+            tooltip.style.left = `${rect.left + (rect.width / 2) - (tooltipWidth / 2)}px`;
+            tooltip.style.top = `${rect.bottom + 10}px`;
+        });
+
+        // 鼠标离开隐藏提示框
+        icon.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('show');
+        });
+
+        // 点击也显示提示
+        icon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const info = e.target.getAttribute('data-info');
+            if (!info) return;
+
+            // 如果已显示则隐藏，否则显示
+            if (tooltip.classList.contains('show')) {
+                tooltip.classList.remove('show');
+            } else {
+                tooltip.textContent = info;
+                tooltip.classList.add('show');
+
+                // 计算位置
+                const rect = e.target.getBoundingClientRect();
+                const tooltipHeight = tooltip.offsetHeight;
+                const tooltipWidth = tooltip.offsetWidth;
+
+                tooltip.style.left = `${rect.left + (rect.width / 2) - (tooltipWidth / 2)}px`;
+                tooltip.style.top = `${rect.bottom + 10}px`;
+            }
+        });
+    });
+
+    // 点击其他地方隐藏提示框
+    document.addEventListener('click', () => {
+        tooltip.classList.remove('show');
+    });
 }
 
 // 加载数据

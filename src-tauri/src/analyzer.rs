@@ -15,6 +15,9 @@ pub struct KeyStats {
     pub key_categories: HashMap<String, u64>,
     pub app_usage: HashMap<String, u64>,
     pub time_distribution: HashMap<String, u64>,
+    pub prev_total_presses: u64,
+    pub prev_avg_kpm: f64,
+    pub prev_backspace_ratio: f64,
 }
 
 pub struct DataAnalyzer {
@@ -37,6 +40,12 @@ impl DataAnalyzer {
         let key_categories = self.get_key_categories(&start_time, &end_time)?;
         let app_usage = self.get_app_usage(&start_time, &end_time)?;
         let time_distribution = self.get_time_distribution(&start_time, &end_time)?;
+        
+        // 获取前一周期的统计数据
+        let (prev_start_time, prev_end_time) = self.get_previous_time_range(time_range)?;
+        let prev_total_presses = self.get_total_presses(&prev_start_time, &prev_end_time)?;
+        let prev_avg_kpm = self.calculate_average_kpm(&prev_start_time, &prev_end_time)?;
+        let prev_backspace_ratio = self.calculate_backspace_ratio(&prev_start_time, &prev_end_time)?;
 
         Ok(KeyStats {
             total_presses,
@@ -47,6 +56,9 @@ impl DataAnalyzer {
             key_categories,
             app_usage,
             time_distribution,
+            prev_total_presses,
+            prev_avg_kpm,
+            prev_backspace_ratio,
         })
     }
 
@@ -251,5 +263,40 @@ impl DataAnalyzer {
         } else {
             "其他键".to_string()
         }
+    }
+
+    fn get_previous_time_range(&self, time_range: &str) -> Result<(DateTime<Local>, DateTime<Local>), rusqlite::Error> {
+        let now = Local::now();
+        let (current_start, current_end) = self.get_time_range(time_range)?;
+        
+        let duration = current_end.signed_duration_since(current_start);
+        
+        let (prev_start_time, prev_end_time) = match time_range {
+            "today" => {
+                // 前一天的相同时间段
+                let yesterday_end = current_start;
+                let yesterday_start = yesterday_end - duration;
+                (yesterday_start, yesterday_end)
+            },
+            "week" => {
+                // 上一周
+                let prev_week_end = current_start;
+                let prev_week_start = prev_week_end - Duration::days(7);
+                (prev_week_start, prev_week_end)
+            },
+            "month" => {
+                // 上个月
+                let prev_month_end = current_start;
+                let prev_month_start = prev_month_end - Duration::days(30);
+                (prev_month_start, prev_month_end)
+            },
+            "all" => {
+                // 全部数据没有前一个周期的比较
+                (current_start, current_end)
+            },
+            _ => return Err(rusqlite::Error::InvalidQuery),
+        };
+        
+        Ok((prev_start_time, prev_end_time))
     }
 } 
