@@ -187,7 +187,6 @@ function initTimeFilter() {
             const timeRange = btn.getAttribute('data-time');
             currentTimeFilter = timeRange;
 
-            // 更新数据显示（实际项目中应根据时间范围从后端获取数据）
             updateDataByTimeRange(timeRange);
         });
     });
@@ -784,6 +783,8 @@ function updateKeyTypeChart(stats) {
     const chartElement = document.getElementById('key-type-chart');
     if (!chartElement) return;
 
+    chartElement.innerHTML = '';
+
     // 清除旧的图表
     const canvas = chartElement.querySelector('canvas');
     if (canvas) {
@@ -1284,5 +1285,5 @@ function setupAutoRefresh() {
         } catch (error) {
             console.error('自动刷新出错:', error);
         }
-    }, 30000); // 30秒
+    }, 5000); // 1秒
 }
