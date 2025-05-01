@@ -3,6 +3,9 @@
 
 pub mod keyboard;
 pub mod database;
+mod tray;
+mod config;
+mod commands;
 use keyboard::KeyboardMonitor;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -16,28 +19,11 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
-
-#[derive(Serialize, Deserialize, Debug)]
-struct AppConfig {
-    show_exit_confirm: bool,
-    minimize_on_close: bool,
-    recording_enabled: bool, // 新增字段
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        AppConfig {
-            show_exit_confirm: true,
-            minimize_on_close: true,
-            recording_enabled: true,
-        }
-    }
-}
+use config::ConfigManager;
 
 // 使用Mutex包装配置，以便在程序运行时修改
 struct AppState {
-    config: Mutex<AppConfig>,
-    config_path: PathBuf,
+    config_manager: ConfigManager,
     keyboard_monitor: Mutex<KeyboardMonitor>,  // 添加键盘监听器
 }
 
@@ -45,7 +31,7 @@ struct AppState {
 #[tauri::command]
 fn get_recording_status(app: tauri::AppHandle) -> bool {
     let state = app.state::<AppState>();
-    let config = state.config.lock().unwrap();
+    let config = state.config_manager.get_config();
     config.recording_enabled
 }
 // 添加开始监听命令
@@ -61,7 +47,7 @@ async fn start_recording(app: tauri::AppHandle) -> Result<(), String> {
     }
     // 持久化状态
     {
-        let mut config = state.config.lock().unwrap();
+        let mut config = state.config_manager.get_config();
         config.recording_enabled = true;
     }
     state.save_config()?;
@@ -77,7 +63,7 @@ async fn stop_recording(app: tauri::AppHandle) {
     println!("stop recording");
     // 持久化状态
     {
-        let mut config = state.config.lock().unwrap();
+        let mut config = state.config_manager.get_config();
         config.recording_enabled = false;
     }
     let _ = state.save_config();
@@ -85,64 +71,22 @@ async fn stop_recording(app: tauri::AppHandle) {
 
 impl AppState {
     fn new(app_dir: PathBuf) -> Self {
-        let config_path = app_dir.join("config.json");
-        println!("配置文件路径: {:?}", config_path);
-        println!("配置文件是否存在: {}", config_path.exists());
-        
-        let config = if config_path.exists() {
-            match File::open(&config_path) {
-                Ok(mut file) => {
-                    let mut contents = String::new();
-                    if file.read_to_string(&mut contents).is_ok() {
-                        println!("读取到的配置内容: {}", contents);
-                        match serde_json::from_str(&contents) {
-                            Ok(config) => config,
-                            Err(e) => {
-                                println!("配置解析错误: {}", e);
-                                AppConfig::default()
-                            }
-                        }
-                    } else {
-                        println!("读取配置文件失败");
-                        AppConfig::default()
-                    }
-                }
-                Err(e) => {
-                    println!("打开配置文件失败: {}", e);
-                    AppConfig::default()
-                }
-            }
-        } else {
-            println!("配置文件不存在，使用默认配置");
-            AppConfig {
-                show_exit_confirm: true,
-                minimize_on_close: true,  // 默认值
-                recording_enabled: true, // 默认值
-            }
-        };
-        
-        println!("最终使用的配置: {:?}", config);
-
         AppState {
-            config: Mutex::new(config),
-            config_path,
+            config_manager: ConfigManager::new(app_dir.clone()),
             keyboard_monitor: Mutex::new(KeyboardMonitor::new(app_dir)),
         }
     }
     fn save_config(&self) -> Result<(), String> {
-        let config = self.config.lock().unwrap();
-        let json = match serde_json::to_string_pretty(&*config) {
-            Ok(j) => j,
-            Err(e) => return Err(format!("配置序列化失败: {}", e)),
-        };
+        self.config_manager.save_config()
+    }
 
-        match File::create(&self.config_path) {
-            Ok(mut file) => match file.write_all(json.as_bytes()) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(format!("写入配置文件失败: {}", e)),
-            },
-            Err(e) => Err(format!("创建配置文件失败: {}", e)),
-        }
+    fn update_config<F>(&self, update_fn: F) -> Result<(), String>
+    where
+        F: FnOnce(&mut config::AppConfig),
+    {
+        let mut config = self.config_manager.get_config();
+        update_fn(&mut config);
+        self.save_config()
     }
 }
 
@@ -162,7 +106,7 @@ async fn hide_window(window: tauri::WebviewWindow) {
 fn update_exit_confirm(app: tauri::AppHandle, show_confirm: bool) -> Result<(), String> {
     let state = app.state::<AppState>();
     {
-        let mut config = state.config.lock().unwrap();
+        let mut config = state.config_manager.get_config();
         config.show_exit_confirm = show_confirm;
     }
     state.save_config()
@@ -172,7 +116,7 @@ fn update_exit_confirm(app: tauri::AppHandle, show_confirm: bool) -> Result<(), 
 #[tauri::command]
 fn get_exit_confirm_setting(app: tauri::AppHandle) -> bool {
     let state = app.state::<AppState>();
-    let config = state.config.lock().unwrap();
+    let config = state.config_manager.get_config();
     config.show_exit_confirm
 }
 
@@ -181,7 +125,7 @@ fn get_exit_confirm_setting(app: tauri::AppHandle) -> bool {
 fn update_close_behavior(app: tauri::AppHandle, minimize: bool) -> Result<(), String> {
     let state = app.state::<AppState>();
     {
-        let mut config = state.config.lock().unwrap();
+        let mut config = state.config_manager.get_config();
         config.minimize_on_close = minimize;
     }
     state.save_config()
@@ -197,7 +141,7 @@ fn main() {
             let app_state = AppState::new(app_dir);
             // 根据配置决定是否启动监听器
             {
-                let config = app_state.config.lock().unwrap();
+                let config = app_state.config_manager.get_config();
                 let mut monitor = app_state.keyboard_monitor.lock().unwrap();
                 monitor.set_app_handle(app.handle().clone());
                 if config.recording_enabled {
@@ -207,60 +151,8 @@ fn main() {
                 }
             }
             app.manage(app_state);
-
-            // 创建托盘菜单
-            let show = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
-            let about = MenuItem::with_id(app, "about", "关于", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "退出程序", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &about, &quit])?;
-
             // 创建托盘图标
-            let tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone()) // 使用默认图标
-                .tooltip("右键显示菜单")
-                .menu(&menu)
-                .menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "quit" => app.exit(0),
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                        }
-                    }
-                    "about" => {
-                        let _ = app.dialog().message(
-                            "键盘统计\n版本: 0.1.0\n作者: Program-Rookie，抖音：AI CodingZ",
-                        ).title("关于").blocking_show();
-                    }
-                    _ => println!("未知菜单项: {:?}", event.id),
-                })
-                .on_tray_icon_event(|tray, event| {
-                    match event {
-                        // 右键点击时手动显示菜单
-                        TrayIconEvent::Click { 
-                            button: MouseButton::Right, 
-                            button_state: MouseButtonState::Up,
-                            ..
-                        } => {
-                            // 在 Tauri 2.0 中，右键菜单会自动显示，不需要手动调用
-                        }
-                        // 左键点击显示窗口
-                        TrayIconEvent::Click {
-                            button: MouseButton::Left,
-                            button_state: MouseButtonState::Up,
-                            ..
-                        } => {
-                            let app = tray.app_handle();
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                        _ => {}
-                    }
-                })
-                .build(app)?;
+            tray::setup_tray(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -280,7 +172,7 @@ fn main() {
                 
                 // 获取应用状态
                 let state = app_handle.state::<AppState>();
-                let config = state.config.lock().unwrap();
+                let config = state.config_manager.get_config();
                 let show_confirm = config.show_exit_confirm;
                 let minimize_on_close = config.minimize_on_close;
                 
