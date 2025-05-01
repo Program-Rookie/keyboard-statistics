@@ -19,6 +19,14 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 use config::ConfigManager;
+use keyboard_statistics_lib::analyzer::KeyStats;
+
+// 定义get_key_stats函数
+#[tauri::command]
+fn get_key_stats(app: tauri::AppHandle, time_range: &str) -> Result<KeyStats, String> {
+    // 使用keyboard_statistics_lib中提供的函数
+    keyboard_statistics_lib::get_key_stats(app, time_range)
+}
 
 // 使用Mutex包装配置，以便在程序运行时修改
 struct AppState {
@@ -163,6 +171,7 @@ fn main() {
             start_recording,
             stop_recording,
             get_recording_status,
+            get_key_stats,
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

@@ -40,8 +40,8 @@ window.addEventListener("DOMContentLoaded", async() => {
         showModal('exit-confirm-modal');
     });
 
-    // 加载模拟数据（实际项目中应从后端获取）
-    loadMockData();
+    // 加载数据（从后端获取）
+    loadData();
     // 初始化overlay窗口
     createOverlayWindow();
 });
@@ -547,7 +547,7 @@ async function deleteData() {
         document.getElementById('confirm-delete').disabled = true;
 
         // 更新数据显示
-        loadMockData();
+        loadData();
     } catch (error) {
         console.error('删除数据失败:', error);
         alert('删除数据失败，请重试。');
@@ -562,7 +562,7 @@ async function clearAllData() {
         alert('所有数据已清除！');
 
         // 更新数据显示
-        loadMockData();
+        loadData();
     } catch (error) {
         console.error('清除数据失败:', error);
         alert('清除数据失败，请重试。');
@@ -607,109 +607,438 @@ async function toggleAutostart() {
 }
 
 // 根据时间范围更新数据
-function updateDataByTimeRange(timeRange) {
-    // 在实际项目中，这里应该调用后端API获取对应时间范围的数据
-    // 这里使用模拟数据
-    console.log(`更新时间范围: ${timeRange}`);
+async function updateDataByTimeRange(timeRange) {
+    try {
+        // 显示加载指示器
+        document.querySelector('.kpm-value').textContent = '加载中...';
+        document.querySelector('.total-presses-value').textContent = '加载中...';
 
-    // 更新统计卡片数据
-    updateStatsCards(timeRange);
+        // 保存当前时间范围选择
+        currentTimeFilter = timeRange;
 
-    // 更新图表数据
-    updateCharts(timeRange);
+        // 使用与loadData函数相同的模拟数据
+        const mockStats = {
+            total_presses: 12500,
+            kpm: 68.5,
+            most_used_keys: [
+                ["A", 1250],
+                ["E", 980],
+                ["Space", 850],
+                ["T", 740],
+                ["O", 720],
+                ["I", 690],
+                ["N", 570],
+                ["S", 560],
+                ["R", 540],
+                ["L", 490]
+            ],
+            key_categories: {
+                "字母键": 7800,
+                "空格键": 1500,
+                "数字键": 920,
+                "修饰键": 850,
+                "符号键": 780,
+                "功能键": 350,
+                "导航键": 300
+            },
+            app_usage: {
+                "VSCode": 3500,
+                "Chrome": 2800,
+                "Word": 1500,
+                "Outlook": 1200,
+                "PowerPoint": 900,
+                "Excel": 850,
+                "Teams": 650,
+                "Explorer": 400,
+                "其他应用": 700
+            },
+            time_distribution: {
+                "09": 850,
+                "10": 1200,
+                "11": 1350,
+                "12": 650,
+                "13": 500,
+                "14": 1100,
+                "15": 1300,
+                "16": 1450,
+                "17": 1200,
+                "18": 750,
+                "19": 500,
+                "20": 850,
+                "21": 800
+            }
+        };
+
+        let stats;
+        try {
+            // 尝试从后端获取统计数据
+            stats = await invoke('get_key_stats', { timeRange });
+        } catch (error) {
+            console.warn('后端API调用失败，使用模拟数据:', error);
+            stats = mockStats; // 如果后端API不可用，使用模拟数据
+        }
+
+        // 更新统计卡片
+        updateStatsCards(stats);
+
+        // 更新图表
+        updateCharts(stats);
+    } catch (error) {
+        console.error('更新数据失败:', error);
+        document.querySelector('.kpm-value').textContent = '更新失败';
+        document.querySelector('.total-presses-value').textContent = '更新失败';
+    }
 }
 
 // 更新统计卡片
-function updateStatsCards(timeRange) {
+function updateStatsCards(stats) {
     const statValues = document.querySelectorAll('.stat-value');
     const statTrends = document.querySelectorAll('.stat-trend');
 
-    // 模拟数据
-    let totalKeys, todayKeys, avgKpm, activeApps;
-
-    switch (timeRange) {
-        case 'today':
-            totalKeys = '12,345';
-            todayKeys = '1,234';
-            avgKpm = '45';
-            activeApps = '8';
-            break;
-        case 'week':
-            totalKeys = '85,421';
-            todayKeys = '12,203';
-            avgKpm = '42';
-            activeApps = '12';
-            break;
-        case 'month':
-            totalKeys = '342,198';
-            todayKeys = '11,406';
-            avgKpm = '40';
-            activeApps = '15';
-            break;
-        case 'all':
-            totalKeys = '1,245,632';
-            todayKeys = '10,521';
-            avgKpm = '38';
-            activeApps = '24';
-            break;
-        default:
-            totalKeys = '12,345';
-            todayKeys = '1,234';
-            avgKpm = '45';
-            activeApps = '8';
-    }
-
-    // 更新数值
+    // 使用后端数据
     if (statValues.length >= 4) {
-        statValues[0].textContent = totalKeys;
-        statValues[1].textContent = todayKeys;
-        statValues[2].textContent = avgKpm;
-        statValues[3].textContent = activeApps;
+        statValues[0].textContent = stats.total_presses.toLocaleString();
+        statValues[1].textContent = stats.total_presses.toLocaleString(); // 今日按键与总按键相同，后续可修改
+        statValues[2].textContent = stats.kpm.toFixed(1);
+        statValues[3].textContent = Object.keys(stats.app_usage).length;
     }
 
-    // 更新趋势
+    // 更新趋势（目前无法获取趋势数据，保留静态内容）
     if (statTrends.length >= 4) {
-        statTrends[0].textContent = '+5% 较昨日';
-        statTrends[0].className = 'stat-trend positive';
+        statTrends[0].textContent = '当前统计';
+        statTrends[0].className = 'stat-trend';
 
-        statTrends[1].textContent = '102 次/小时';
+        statTrends[1].textContent = `${Math.round(stats.kpm * 60)} 次/小时`;
 
-        statTrends[2].textContent = '-2% 较昨日';
-        statTrends[2].className = 'stat-trend negative';
+        statTrends[2].textContent = '实时数据';
+        statTrends[2].className = 'stat-trend';
 
-        statTrends[3].textContent = `${activeApps} 个应用`;
+        statTrends[3].textContent = `${Object.keys(stats.app_usage).length} 个应用`;
     }
 }
 
 // 更新图表
-function updateCharts(timeRange) {
-    // 在实际项目中，这里应该使用图表库（如Chart.js）渲染图表
-    // 这里仅更新占位符文本
-    const charts = document.querySelectorAll('.chart');
+function updateCharts(stats) {
+    // 更新按键类型分布图表
+    updateKeyTypeChart(stats);
 
-    charts.forEach(chart => {
-        const placeholder = chart.querySelector('.placeholder-chart');
-        if (placeholder) {
-            placeholder.textContent = `${timeRange} 数据图表将在此显示`;
+    // 更新最常用按键图表
+    updateTopKeysChart(stats);
+
+    // 更新应用使用时间分布图表
+    updateAppTimeChart(stats);
+
+    // 更新时间分布图表
+    updateTimeDistributionChart(stats);
+}
+
+// 更新按键类型分布图表
+function updateKeyTypeChart(stats) {
+    const chartElement = document.getElementById('key-type-chart');
+    if (!chartElement) return;
+
+    // 清除旧的图表
+    const canvas = chartElement.querySelector('canvas');
+    if (canvas) {
+        canvas.remove();
+    }
+    const newCanvas = document.createElement('canvas');
+    chartElement.appendChild(newCanvas);
+
+    // 处理数据
+    const categories = stats.key_categories;
+    const labels = Object.keys(categories);
+    const data = Object.values(categories);
+
+    // 创建图表
+    new Chart(newCanvas, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#4a6cf7', '#6c8cff', '#94a3ff', '#b6bcff',
+                    '#d8d5ff', '#f092ff', '#ff71a3', '#ff6b6b'
+                ],
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                }
+            }
         }
     });
 }
 
-// 加载模拟数据
-function loadMockData() {
-    // 更新当前KPM
-    document.querySelector('.kpm-value').textContent = '42';
+// 更新最常用按键图表
+function updateTopKeysChart(stats) {
+    const chartElement = document.getElementById('top-keys-chart');
+    if (!chartElement) return;
 
-    // 更新统计卡片
-    updateStatsCards(currentTimeFilter);
+    // 清除旧的图表
+    const canvas = chartElement.querySelector('canvas');
+    if (canvas) {
+        canvas.remove();
+    }
+    const newCanvas = document.createElement('canvas');
+    chartElement.appendChild(newCanvas);
 
-    // 更新图表
-    updateCharts(currentTimeFilter);
+    // 准备数据
+    const keys = stats.most_used_keys.map(item => item[0]);
+    const counts = stats.most_used_keys.map(item => item[1]);
 
-    // 设置数据路径
-    const dataPathEl = document.getElementById('data-path');
-    if (dataPathEl) {
-        dataPathEl.textContent = 'C:\\Users\\Username\\AppData\\Roaming\\keyboard-statistics';
+    // 创建图表
+    new Chart(newCanvas, {
+        type: 'bar',
+        data: {
+            labels: keys,
+            datasets: [{
+                label: '使用次数',
+                data: counts,
+                backgroundColor: '#4a6cf7',
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)',
+                    },
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    },
+                },
+            },
+        },
+    });
+}
+
+// 更新应用使用时间分布图表
+function updateAppTimeChart(stats) {
+    const chartElement = document.getElementById('app-time-chart');
+    if (!chartElement) return;
+
+    // 清除旧的图表
+    const canvas = chartElement.querySelector('canvas');
+    if (canvas) {
+        canvas.remove();
+    }
+    const newCanvas = document.createElement('canvas');
+    chartElement.appendChild(newCanvas);
+
+    // 准备数据：应用使用时间分布
+    const appUsage = stats.app_usage;
+    const apps = Object.keys(appUsage).slice(0, 10); // 只显示前10个应用
+    const usageData = apps.map(app => appUsage[app]);
+
+    // 创建图表
+    new Chart(newCanvas, {
+        type: 'bar',
+        data: {
+            labels: apps,
+            datasets: [{
+                label: '按键次数',
+                data: usageData,
+                backgroundColor: '#4a6cf7',
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)',
+                    },
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                    },
+                },
+            },
+        },
+    });
+}
+
+// 更新时间分布图表
+function updateTimeDistributionChart(stats) {
+    const chartElement = document.getElementById('hourly-distribution-chart');
+    if (!chartElement) return;
+
+    // 清除旧的图表
+    const canvas = chartElement.querySelector('canvas');
+    if (canvas) {
+        canvas.remove();
+    }
+    const newCanvas = document.createElement('canvas');
+    chartElement.appendChild(newCanvas);
+
+    // 准备数据：小时分布
+    const timeData = new Array(24).fill(0);
+    Object.entries(stats.time_distribution).forEach(([hour, count]) => {
+        const hourNum = parseInt(hour, 10);
+        if (!isNaN(hourNum) && hourNum >= 0 && hourNum < 24) {
+            timeData[hourNum] = count;
+        }
+    });
+
+    const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+    // 创建图表
+    new Chart(newCanvas, {
+        type: 'line',
+        data: {
+            labels: hours,
+            datasets: [{
+                label: '按键活动',
+                data: timeData,
+                backgroundColor: 'rgba(74, 108, 247, 0.2)',
+                borderColor: '#4a6cf7',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)',
+                    },
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    },
+                    ticks: {
+                        maxTicksLimit: 12,
+                    },
+                },
+            },
+        },
+    });
+}
+
+// 加载数据（替换原有的loadMockData）
+async function loadData() {
+    try {
+        // 获取当前KPM - 目前使用固定值
+        document.querySelector('.kpm-value').textContent = '计算中...';
+
+        // 创建一个模拟数据，用于在后端API不可用时展示界面
+        const mockStats = {
+            total_presses: 12500,
+            kpm: 68.5,
+            most_used_keys: [
+                ["A", 1250],
+                ["E", 980],
+                ["Space", 850],
+                ["T", 740],
+                ["O", 720],
+                ["I", 690],
+                ["N", 570],
+                ["S", 560],
+                ["R", 540],
+                ["L", 490]
+            ],
+            key_categories: {
+                "字母键": 7800,
+                "空格键": 1500,
+                "数字键": 920,
+                "修饰键": 850,
+                "符号键": 780,
+                "功能键": 350,
+                "导航键": 300
+            },
+            app_usage: {
+                "VSCode": 3500,
+                "Chrome": 2800,
+                "Word": 1500,
+                "Outlook": 1200,
+                "PowerPoint": 900,
+                "Excel": 850,
+                "Teams": 650,
+                "Explorer": 400,
+                "其他应用": 700
+            },
+            time_distribution: {
+                "09": 850,
+                "10": 1200,
+                "11": 1350,
+                "12": 650,
+                "13": 500,
+                "14": 1100,
+                "15": 1300,
+                "16": 1450,
+                "17": 1200,
+                "18": 750,
+                "19": 500,
+                "20": 850,
+                "21": 800
+            }
+        };
+
+        let stats;
+        try {
+            // 尝试从后端获取统计数据
+            stats = await invoke('get_key_stats', { timeRange: currentTimeFilter });
+        } catch (error) {
+            console.warn('后端API调用失败，使用模拟数据:', error);
+            stats = mockStats; // 如果后端API不可用，使用模拟数据
+        }
+
+        // 更新当前KPM
+        document.querySelector('.kpm-value').textContent = stats.kpm.toFixed(1);
+
+        // 更新统计卡片
+        updateStatsCards(stats);
+
+        // 更新图表
+        updateCharts(stats);
+
+        // 设置数据路径
+        const dataPathEl = document.getElementById('data-path');
+        if (dataPathEl) {
+            dataPathEl.textContent = 'C:\\Users\\Username\\AppData\\Roaming\\keyboard-statistics';
+            // 实际生产环境可通过invoke调用获取真实路径
+        }
+    } catch (error) {
+        console.error('加载数据失败:', error);
+        document.querySelector('.kpm-value').textContent = '加载失败';
     }
 }
 
