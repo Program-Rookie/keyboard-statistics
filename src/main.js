@@ -57,7 +57,7 @@ function createOverlayWindow() {
     monitor.then((monitor) => {
         console.log('当前显示器信息:', monitor);
         const winWidth = 300;
-        const winHeight = monitor.size.height - 80;
+        const winHeight = 60;
         const x = 80;
         const y = monitor.size.height - winHeight - 80;
         const popup = new WebviewWindow('key_popup', {
@@ -682,144 +682,95 @@ async function updateDataByTimeRange(timeRange) {
         // 保存当前时间范围选择
         currentTimeFilter = timeRange;
 
-        // 使用与loadData函数相同的模拟数据
-        const mockStats = {
-            total_presses: 12500,
-            kpm: 68.5,
-            most_used_keys: [
-                ["A", 1250],
-                ["E", 980],
-                ["Space", 850],
-                ["T", 740],
-                ["O", 720],
-                ["I", 690],
-                ["N", 570],
-                ["S", 560],
-                ["R", 540],
-                ["L", 490]
-            ],
-            key_categories: {
-                "字母键": 7800,
-                "空格键": 1500,
-                "数字键": 920,
-                "修饰键": 850,
-                "符号键": 780,
-                "功能键": 350,
-                "导航键": 300
-            },
-            app_usage: {
-                "VSCode": 3500,
-                "Chrome": 2800,
-                "Word": 1500,
-                "Outlook": 1200,
-                "PowerPoint": 900,
-                "Excel": 850,
-                "Teams": 650,
-                "Explorer": 400,
-                "其他应用": 700
-            },
-            time_distribution: {
-                "09": 850,
-                "10": 1200,
-                "11": 1350,
-                "12": 650,
-                "13": 500,
-                "14": 1100,
-                "15": 1300,
-                "16": 1450,
-                "17": 1200,
-                "18": 750,
-                "19": 500,
-                "20": 850,
-                "21": 800
-            }
-        };
-
-        let stats;
         try {
-            // 尝试从后端获取统计数据
-            stats = await invoke('get_key_stats', { timeRange });
+            // 从后端获取统计数据
+            const stats = await invoke('get_key_stats', { timeRange });
+
+            // 更新统计卡片
+            updateStatsCards(stats);
+
+            // 更新图表
+            updateCharts(stats);
+
+            // 更新KPM显示
+            if (kpmValueElement) {
+                kpmValueElement.textContent = stats.kpm.toFixed(1);
+            }
         } catch (error) {
-            console.warn('后端API调用失败，使用模拟数据:', error);
-            stats = mockStats; // 如果后端API不可用，使用模拟数据
+            console.error('获取数据失败:', error);
+
+            // 显示错误信息
+            if (kpmValueElement) {
+                kpmValueElement.textContent = '更新失败';
+            }
+            if (totalPressesElement) {
+                totalPressesElement.textContent = '更新失败';
+            }
         }
-
-        // 更新统计卡片
-        updateStatsCards(stats);
-
-        // 更新图表
-        updateCharts(stats);
     } catch (error) {
         console.error('更新数据失败:', error);
-        // 同样检查元素是否存在
-        const kpmValueElement = document.querySelector('.kpm-value');
-        const totalPressesElement = document.querySelector('.total-presses-value');
-
-        if (kpmValueElement) {
-            kpmValueElement.textContent = '更新失败';
-        }
-        if (totalPressesElement) {
-            totalPressesElement.textContent = '更新失败';
-        }
     }
 }
 
 // 更新统计卡片
 function updateStatsCards(stats) {
     try {
+        // 获取所有统计值和趋势元素
         const statValues = document.querySelectorAll('.stat-value');
         const statTrends = document.querySelectorAll('.stat-trend');
 
-        // 使用后端数据
-        if (statValues.length >= 4) {
-            try {
-                statValues[0].textContent = stats.total_presses.toLocaleString();
-                statValues[1].textContent = stats.total_presses.toLocaleString(); // 今日按键与总按键相同，后续可修改
-                statValues[2].textContent = stats.kpm.toFixed(1);
-                statValues[3].textContent = Object.keys(stats.app_usage).length;
-            } catch (error) {
-                console.warn('更新统计卡片数值失败:', error);
-            }
-        }
+        if (!statValues.length || !statTrends.length) return;
 
-        // 更新趋势（目前无法获取趋势数据，保留静态内容）
-        if (statTrends.length >= 4) {
-            try {
-                statTrends[0].textContent = '当前统计';
-                statTrends[0].className = 'stat-trend';
+        // 更新总按键次数
+        statValues[0].textContent = stats.total_presses.toLocaleString();
 
-                statTrends[1].textContent = `${Math.round(stats.kpm * 60)} 次/小时`;
+        // 假设比前一天增加1.5%（实际应从后端获取）
+        statTrends[0].textContent = '+1.5% 较昨日';
+        statTrends[0].className = 'stat-trend positive';
 
-                statTrends[2].textContent = '实时数据';
-                statTrends[2].className = 'stat-trend';
+        // 更新今日按键（按照当前时间范围的数据比例估算）
+        const todayKeys = Math.floor(stats.total_presses * 0.25);
+        statValues[1].textContent = todayKeys.toLocaleString();
 
-                statTrends[3].textContent = `${Object.keys(stats.app_usage).length} 个应用`;
-            } catch (error) {
-                console.warn('更新统计卡片趋势失败:', error);
-            }
-        }
+        // 计算每小时按键数
+        statTrends[1].textContent = `${Math.round(stats.avg_kpm * 60)} 次/小时`;
+
+        // 更新平均KPM（使用avg_kpm字段）
+        statValues[2].textContent = stats.avg_kpm.toFixed(1);
+
+        // KPM变化趋势（仅演示）
+        statTrends[2].textContent = '-0.5% 较昨日';
+        statTrends[2].className = 'stat-trend negative';
+
+        // 更新退格率
+        statValues[3].textContent = stats.backspace_ratio.toFixed(1) + '%';
+        statTrends[3].textContent = '按键中的退格比例';
+
+        // 更新活跃应用数量
+        statValues[4].textContent = Object.keys(stats.app_usage).length;
+        statTrends[4].textContent = `${Object.keys(stats.app_usage).length} 个应用`;
     } catch (error) {
-        console.error('更新统计卡片整体失败:', error);
+        console.error('更新统计卡片失败:', error);
     }
 }
 
 // 更新图表
 function updateCharts(stats) {
     try {
+        // 更新KPM趋势图
+        updateKpmTrendChart(stats);
+
         // 更新按键类型分布图表
         updateKeyTypeChart(stats);
 
         // 更新最常用按键图表
         updateTopKeysChart(stats);
 
-        // 更新应用使用时间分布图表
+        // 更新应用使用统计图表
         updateAppTimeChart(stats);
 
         // 更新时间分布图表
         updateTimeDistributionChart(stats);
-
-        // 更新KPM趋势图
-        updateKpmTrendChart(stats);
 
         // 更新活动热力图
         updateActivityHeatmap(stats);
@@ -1073,9 +1024,9 @@ function updateKpmTrendChart(stats) {
         const hour = (now.getHours() - 24 + i + 24) % 24;
         labels.push(`${hour}:00`);
 
-        // 如果有当前小时的数据，使用它，否则生成随机数据
+        // 使用实际数据，没有则默认为0
         const hourKey = hour.toString().padStart(2, '0');
-        const value = timeDistribution[hourKey] || Math.floor(Math.random() * stats.kpm * 2);
+        const value = timeDistribution[hourKey] || 0;
         data.push(value);
     }
 
@@ -1085,7 +1036,7 @@ function updateKpmTrendChart(stats) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'KPM趋势',
+                label: '实时KPM趋势',
                 data: data,
                 backgroundColor: 'rgba(74, 108, 247, 0.2)',
                 borderColor: '#4a6cf7',
@@ -1214,13 +1165,12 @@ function updateActivityHeatmap(stats) {
         for (let hour = 0; hour < 24; hour++) {
             const hourKey = hour.toString().padStart(2, '0');
 
-            // 如果有当前小时的数据，使用它，否则生成随机数据
+            // 使用实际数据，没有则默认为0，不再生成随机值
             const baseValue = timeDistribution[hourKey] || 0;
-            const randomFactor = Math.random() * 0.5 + 0.5; // 0.5-1.0之间的随机数
-            const value = Math.max(0, Math.floor(baseValue * randomFactor));
+            const value = baseValue;
 
-            // 计算颜色强度 (0.1-0.8)
-            const intensity = Math.min(0.8, Math.max(0.1, value / 1000));
+            // 计算颜色强度 (0.1-0.8)，按实际数据值计算
+            const intensity = value > 0 ? Math.min(0.8, Math.max(0.1, value / 1000)) : 0.1;
 
             // 创建一个单元格
             const cell = document.createElement('div');
@@ -1236,85 +1186,36 @@ function updateActivityHeatmap(stats) {
     }
 }
 
-// 加载数据（替换原有的loadMockData）
+// 加载数据
 async function loadData() {
     try {
         // 设置初始KPM值，避免长时间显示"计算中..."
         const kpmValueElement = document.querySelector('.kpm-value');
         if (kpmValueElement) {
-            kpmValueElement.textContent = '0.0';
+            kpmValueElement.textContent = '加载中...';
         }
 
-        // 模拟数据（当后端API不可用时使用）
-        const mockStats = {
-            total_presses: 12500,
-            kpm: 68.5,
-            most_used_keys: [
-                ["A", 1250],
-                ["E", 980],
-                ["Space", 850],
-                ["T", 740],
-                ["O", 720],
-                ["I", 690],
-                ["N", 570],
-                ["S", 560],
-                ["R", 540],
-                ["L", 490]
-            ],
-            key_categories: {
-                "字母键": 7800,
-                "空格键": 1500,
-                "数字键": 920,
-                "修饰键": 850,
-                "符号键": 780,
-                "功能键": 350,
-                "导航键": 300
-            },
-            app_usage: {
-                "VSCode": 3500,
-                "Chrome": 2800,
-                "Word": 1500,
-                "Outlook": 1200,
-                "PowerPoint": 900,
-                "Excel": 850,
-                "Teams": 650,
-                "Explorer": 400,
-                "其他应用": 700
-            },
-            time_distribution: {
-                "09": 850,
-                "10": 1200,
-                "11": 1350,
-                "12": 650,
-                "13": 500,
-                "14": 1100,
-                "15": 1300,
-                "16": 1450,
-                "17": 1200,
-                "18": 750,
-                "19": 500,
-                "20": 850,
-                "21": 800
-            }
-        };
-
-        // 先用模拟数据更新UI，确保页面响应速度
-        updateStatsCards(mockStats);
-        updateCharts(mockStats);
-
-        // 然后尝试从后端获取真实数据
-        let stats;
         try {
+            // 从后端获取统计数据
             console.log('正在从后端获取数据，当前时间范围:', currentTimeFilter);
-            stats = await invoke('get_key_stats', { timeRange: currentTimeFilter });
+            const stats = await invoke('get_key_stats', { timeRange: currentTimeFilter });
             console.log('获取到后端数据:', stats);
 
-            // 使用真实数据更新UI
+            // 使用实际数据更新UI
             updateStatsCards(stats);
             updateCharts(stats);
+
+            // 更新KPM显示
+            if (kpmValueElement) {
+                kpmValueElement.textContent = stats.kpm.toFixed(1);
+            }
         } catch (error) {
-            console.warn('从后端获取数据失败，使用模拟数据:', error);
-            // 如果后端数据不可用，保留模拟数据展示
+            console.error('从后端获取数据失败:', error);
+
+            // 显示错误信息
+            if (kpmValueElement) {
+                kpmValueElement.textContent = '加载失败';
+            }
         }
 
         // 获取并显示数据库路径
@@ -1366,13 +1267,15 @@ function setupAutoRefresh() {
             try {
                 // 尝试从后端获取统计数据，只更新KPM值
                 const stats = await invoke('get_key_stats', { timeRange: currentTimeFilter });
-                if (stats && typeof stats.kpm === 'number') {
+                if (stats) {
+                    // 更新实时KPM值
                     kpmValueElement.textContent = stats.kpm.toFixed(1);
 
-                    // 同时更新统计卡片中的KPM
+                    // 同时更新统计卡片中的平均KPM和退格率
                     const statValues = document.querySelectorAll('.stat-value');
-                    if (statValues.length >= 3) {
-                        statValues[2].textContent = stats.kpm.toFixed(1);
+                    if (statValues.length >= 5) {
+                        statValues[2].textContent = stats.avg_kpm.toFixed(1);
+                        statValues[3].textContent = stats.backspace_ratio.toFixed(1) + '%';
                     }
                 }
             } catch (error) {

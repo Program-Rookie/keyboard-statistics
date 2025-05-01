@@ -9,6 +9,8 @@ use rusqlite::params;
 pub struct KeyStats {
     pub total_presses: u64,
     pub kpm: f64,
+    pub avg_kpm: f64,
+    pub backspace_ratio: f64,
     pub most_used_keys: Vec<(String, u64)>,
     pub key_categories: HashMap<String, u64>,
     pub app_usage: HashMap<String, u64>,
@@ -28,7 +30,9 @@ impl DataAnalyzer {
         let (start_time, end_time) = self.get_time_range(time_range)?;
         
         let total_presses = self.get_total_presses(&start_time, &end_time)?;
-        let kpm = self.calculate_kpm(&start_time, &end_time)?;
+        let kpm = self.calculate_current_kpm()?;
+        let avg_kpm = self.calculate_average_kpm(&start_time, &end_time)?;
+        let backspace_ratio = self.calculate_backspace_ratio(&start_time, &end_time)?;
         let most_used_keys = self.get_most_used_keys(&start_time, &end_time, 10)?;
         let key_categories = self.get_key_categories(&start_time, &end_time)?;
         let app_usage = self.get_app_usage(&start_time, &end_time)?;
@@ -37,6 +41,8 @@ impl DataAnalyzer {
         Ok(KeyStats {
             total_presses,
             kpm,
+            avg_kpm,
+            backspace_ratio,
             most_used_keys,
             key_categories,
             app_usage,
@@ -73,13 +79,52 @@ impl DataAnalyzer {
         Ok(count)
     }
 
-    fn calculate_kpm(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) -> Result<f64, rusqlite::Error> {
+    fn calculate_current_kpm(&self) -> Result<f64, rusqlite::Error> {
+        let now = Local::now();
+        let one_minute_ago = now - Duration::seconds(60);
+        
+        let mut stmt = self.conn.prepare(
+            "SELECT COUNT(*) FROM keyboard_events WHERE timestamp BETWEEN ?1 AND ?2"
+        )?;
+        
+        let count: u64 = stmt.query_row(
+            params![one_minute_ago.to_rfc3339(), now.to_rfc3339()],
+            |row| row.get(0)
+        )?;
+        
+        Ok(count as f64)
+    }
+
+    fn calculate_average_kpm(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) -> Result<f64, rusqlite::Error> {
         let duration = (*end_time - *start_time).num_minutes() as f64;
         if duration <= 0.0 {
             return Ok(0.0);
         }
         let total_presses = self.get_total_presses(start_time, end_time)?;
         Ok(total_presses as f64 / duration)
+    }
+
+    fn calculate_kpm(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) -> Result<f64, rusqlite::Error> {
+        self.calculate_current_kpm()
+    }
+
+    fn calculate_backspace_ratio(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) -> Result<f64, rusqlite::Error> {
+        let mut stmt = self.conn.prepare(
+            "SELECT COUNT(*) FROM keyboard_events WHERE key_code = 'Backspace' AND timestamp BETWEEN ?1 AND ?2"
+        )?;
+        
+        let backspace_count: u64 = stmt.query_row(
+            params![start_time.to_rfc3339(), end_time.to_rfc3339()],
+            |row| row.get(0)
+        )?;
+        
+        let total = self.get_total_presses(start_time, end_time)?;
+        
+        if total > 0 {
+            Ok((backspace_count as f64 / total as f64) * 100.0)
+        } else {
+            Ok(0.0)
+        }
     }
 
     fn get_most_used_keys(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>, limit: usize) 
