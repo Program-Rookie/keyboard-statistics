@@ -5,7 +5,6 @@ pub mod keyboard;
 pub mod database;
 mod tray;
 mod config;
-mod commands;
 use keyboard::KeyboardMonitor;
 use tauri::{
     menu::{Menu, MenuItem},
