@@ -192,6 +192,7 @@ fn main() {
         .setup(|app| {
             // 设置应用状态
             let app_dir = app.path().app_data_dir().expect("无法获取应用数据目录");
+            println!("应用数据目录: {:?}", app_dir);
             std::fs::create_dir_all(&app_dir).expect("无法创建应用数据目录");
             let app_state = AppState::new(app_dir);
             // 根据配置决定是否启动监听器

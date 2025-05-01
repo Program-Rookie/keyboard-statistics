@@ -862,3 +862,32 @@ button {
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
+
+.warning-message {
+    margin-top: 8px;
+    padding: 6px 10px;
+    background-color: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid #ffc107;
+    border-radius: 4px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.warning-message.hidden {
+    display: none;
+}
+
+.tooltip-icon {
+    margin-left: 5px;
+    cursor: help;
+    font-size: 12px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: rgba(255, 193, 7, 0.5);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}

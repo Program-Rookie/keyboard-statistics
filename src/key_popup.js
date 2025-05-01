@@ -4,7 +4,21 @@ const popupContainer = document.getElementById('popup-container');
 // 获取当前窗口
 const currentWindow = WebviewWindow.getByLabel('key_popup');
 
+// 跟踪最后一次按键时间
+let lastKeyPressTime = 0;
+// 窗口自动隐藏的计时器
+let hideWindowTimer = null;
+
 listen('key-pressed', event => {
+    // 更新最后按键时间
+    lastKeyPressTime = Date.now();
+    
+    // 清除之前的隐藏计时器
+    if (hideWindowTimer) {
+        clearTimeout(hideWindowTimer);
+        hideWindowTimer = null;
+    }
+    
     currentWindow.then((window) => {
         if (window) {
             window.show();
@@ -28,16 +42,24 @@ listen('key-pressed', event => {
         // 动画结束后移除节点
         setTimeout(() => {
             popupContainer.removeChild(popup);
-            // 如果没有popup了，隐藏窗口
+            // 如果没有popup了，设置窗口隐藏计时器
             if (popupContainer.children.length === 0) {
-                currentWindow.then((window) => {
-                    if (window) {
-                        window.hide();
-                    }
-                });
+                // 根据最后按键时间计算窗口消失的延迟
+                // 如果最后按键时间超过500ms，则立即隐藏
+                const timeSinceLastKey = Date.now() - lastKeyPressTime;
+                const hideDelay = timeSinceLastKey > 500 ? 50 : Math.min(200, Math.max(50, 200 - popupContainer.children.length * 30));
+                
+                hideWindowTimer = setTimeout(() => {
+                    currentWindow.then((window) => {
+                        if (window && popupContainer.children.length === 0) {
+                            window.hide();
+                            hideWindowTimer = null;
+                        }
+                    });
+                }, hideDelay);
             }
-        }, 300);
-    }, 1200); // 每个popup显示1.2秒
+        }, 200); // 减少动画结束后的等待时间
+    }, 1000); // 减少popup显示时间
 });
 
 // 添加调试代码，确认脚本已加载
