@@ -690,8 +690,32 @@ input:checked+.slider:before {
     gap: 10px;
 }
 
+.modal-footer .btn {
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+    background-color: var(--light-color);
+    border: 1px solid var(--border-color);
+    color: var(--dark-color);
+}
+
+.modal-footer .btn:hover {
+    background-color: #e9ecef;
+}
+
+.modal-footer .btn.primary {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.modal-footer .btn.primary:hover {
+    background-color: #3a5bd9;
+}
+
 .warning-text {
-    color: var(--danger-color);
     margin-bottom: 15px;
     font-weight: 500;
 }

@@ -422,7 +422,6 @@ async function toggleRecording() {
 
         // 调用后端API启动记录
         try {
-            console.log('尝试启动记录');
             await invoke('start_recording');
         } catch (error) {
             console.error('启动记录失败:', error);
