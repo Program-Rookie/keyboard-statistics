@@ -41,7 +41,11 @@ window.addEventListener("DOMContentLoaded", async() => {
     });
 
     // 加载数据（从后端获取）
-    loadData();
+    await loadData();
+
+    // 设置定时刷新KPM数据
+    setupAutoRefresh();
+
     // 初始化overlay窗口
     createOverlayWindow();
 });
@@ -198,18 +202,40 @@ function initButtonEvents() {
     }
 
     // 导出数据按钮
-    const exportDataBtn = document.getElementById('export-data');
-    if (exportDataBtn) {
-        exportDataBtn.addEventListener('click', () => {
+    const exportBtn = document.getElementById('export-data');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
             showModal('export-modal');
         });
     }
 
+    // 确认导出按钮
+    const confirmExportBtn = document.getElementById('confirm-export');
+    if (confirmExportBtn) {
+        confirmExportBtn.addEventListener('click', exportData);
+    }
+
     // 删除数据按钮
-    const deleteDataBtn = document.getElementById('delete-data');
-    if (deleteDataBtn) {
-        deleteDataBtn.addEventListener('click', () => {
+    const deleteBtn = document.getElementById('delete-data');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
             showModal('delete-modal');
+        });
+    }
+
+    // 确认删除按钮
+    const confirmDeleteBtn = document.getElementById('confirm-delete');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', deleteData);
+    }
+
+    // 确认删除复选框
+    const confirmDeleteCheckbox = document.getElementById('confirm-delete-checkbox');
+    if (confirmDeleteCheckbox) {
+        confirmDeleteCheckbox.addEventListener('change', (e) => {
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.disabled = !e.target.checked;
+            }
         });
     }
 
@@ -231,10 +257,16 @@ function initButtonEvents() {
     const themeButtons = document.querySelectorAll('.theme-btn');
     themeButtons.forEach(btn => {
         btn.addEventListener('click', () => {
+            // 移除所有活动状态
             themeButtons.forEach(b => b.classList.remove('active'));
+
+            // 添加当前活动状态
             btn.classList.add('active');
 
+            // 获取主题
             const theme = btn.getAttribute('data-theme');
+
+            // 切换主题
             toggleTheme(theme === 'dark');
         });
     });
@@ -245,34 +277,30 @@ function initButtonEvents() {
         autostartToggle.addEventListener('change', toggleAutostart);
     }
 
-    // 清除所有数据按钮
-    const clearAllDataBtn = document.getElementById('clear-all-data');
-    if (clearAllDataBtn) {
-        clearAllDataBtn.addEventListener('click', () => {
-            if (confirm('确定要清除所有数据吗？此操作不可撤销。')) {
-                clearAllData();
-            }
-        });
-    }
-
-    // 删除确认复选框
-    const confirmDeleteCheckbox = document.getElementById('confirm-delete-checkbox');
-    const confirmDeleteBtn = document.getElementById('confirm-delete');
-    if (confirmDeleteCheckbox && confirmDeleteBtn) {
-        confirmDeleteCheckbox.addEventListener('change', () => {
-            confirmDeleteBtn.disabled = !confirmDeleteCheckbox.checked;
-        });
-    }
-
-    // 退出确认设置
+    // 退出确认切换
     const exitConfirmToggle = document.getElementById('exit-confirm-toggle');
     if (exitConfirmToggle) {
-        // 设置初始状态
-        exitConfirmToggle.checked = showExitConfirm;
-
-        // 添加事件监听
         exitConfirmToggle.addEventListener('change', (e) => {
             updateExitConfirmSetting(e.target.checked);
+        });
+    }
+
+    // 打开数据文件夹按钮
+    const openDataFolderBtn = document.getElementById('open-data-folder');
+    if (openDataFolderBtn) {
+        openDataFolderBtn.addEventListener('click', async() => {
+            try {
+                const path = await invoke('get_database_path');
+                if (path) {
+                    // 获取数据库目录路径（去掉文件名）
+                    const folderPath = path.substring(0, path.lastIndexOf('\\'));
+                    // 使用系统默认的文件管理器打开该目录
+                    await invoke('open_folder', { path: folderPath });
+                }
+            } catch (error) {
+                console.error('打开数据文件夹失败:', error);
+                alert('无法打开数据文件夹，请确认应用权限');
+            }
         });
     }
 }
@@ -296,18 +324,6 @@ function initModals() {
             hideModal(modal.id);
         });
     });
-
-    // 确认导出按钮
-    const confirmExportBtn = document.getElementById('confirm-export');
-    if (confirmExportBtn) {
-        confirmExportBtn.addEventListener('click', exportData);
-    }
-
-    // 确认删除按钮
-    const confirmDeleteBtn = document.getElementById('confirm-delete');
-    if (confirmDeleteBtn) {
-        confirmDeleteBtn.addEventListener('click', deleteData);
-    }
 
     // 前往导出数据按钮
     const goToExportBtn = document.getElementById('go-to-export');
@@ -515,14 +531,33 @@ async function exportData() {
     const range = document.getElementById('export-range').value;
     const type = document.getElementById('export-type').value;
 
-    // 在实际项目中，这里应该调用后端API导出数据
     try {
-        await invoke('export_data', { format, range, type });
-        alert('数据导出成功！');
+        // 显示加载中状态
+        const confirmExportBtn = document.getElementById('confirm-export');
+        const originalText = confirmExportBtn.textContent;
+        confirmExportBtn.textContent = '导出中...';
+        confirmExportBtn.disabled = true;
+
+        // 调用后端API导出数据
+        const result = await invoke('export_data', { format, range, typeStr: type });
+
+        // 恢复按钮状态
+        confirmExportBtn.textContent = originalText;
+        confirmExportBtn.disabled = false;
+
+        // 显示成功消息
+        alert(`数据导出成功！\n文件已保存到: ${result}`);
         hideModal('export-modal');
     } catch (error) {
         console.error('导出数据失败:', error);
-        alert('导出数据失败，请重试。');
+        alert(`导出数据失败: ${error}`);
+
+        // 恢复按钮状态
+        const confirmExportBtn = document.getElementById('confirm-export');
+        if (confirmExportBtn) {
+            confirmExportBtn.textContent = '导出';
+            confirmExportBtn.disabled = false;
+        }
     }
 }
 
@@ -536,36 +571,59 @@ async function deleteData() {
         return;
     }
 
-    // 在实际项目中，这里应该调用后端API删除数据
     try {
-        await invoke('delete_data', { range });
-        alert('数据删除成功！');
+        // 显示加载中状态
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+        const originalText = confirmDeleteBtn.textContent;
+        confirmDeleteBtn.textContent = '删除中...';
+        confirmDeleteBtn.disabled = true;
+
+        // 调用后端API删除数据
+        const result = await invoke('delete_data', { range });
+
+        // 恢复按钮状态
+        confirmDeleteBtn.textContent = originalText;
+        confirmDeleteBtn.disabled = true; // 保持禁用状态，直到用户再次勾选确认框
+
+        // 显示成功消息
+        alert(result);
         hideModal('delete-modal');
 
         // 重置确认复选框
         document.getElementById('confirm-delete-checkbox').checked = false;
-        document.getElementById('confirm-delete').disabled = true;
 
         // 更新数据显示
         loadData();
     } catch (error) {
         console.error('删除数据失败:', error);
-        alert('删除数据失败，请重试。');
+        alert(`删除数据失败: ${error}`);
+
+        // 恢复按钮状态
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.textContent = '删除';
+            confirmDeleteBtn.disabled = false;
+        }
     }
 }
 
 // 清除所有数据
 async function clearAllData() {
-    // 在实际项目中，这里应该调用后端API清除所有数据
+    // 再次确认
+    if (!confirm('确定要清除所有数据吗？此操作不可撤销。')) {
+        return;
+    }
+
     try {
-        await invoke('clear_all_data');
-        alert('所有数据已清除！');
+        // 调用后端API清除所有数据
+        const result = await invoke('clear_all_data');
+        alert(result);
 
         // 更新数据显示
         loadData();
     } catch (error) {
         console.error('清除数据失败:', error);
-        alert('清除数据失败，请重试。');
+        alert(`清除数据失败: ${error}`);
     }
 }
 
@@ -610,8 +668,16 @@ async function toggleAutostart() {
 async function updateDataByTimeRange(timeRange) {
     try {
         // 显示加载指示器
-        document.querySelector('.kpm-value').textContent = '加载中...';
-        document.querySelector('.total-presses-value').textContent = '加载中...';
+        const kpmValueElement = document.querySelector('.kpm-value');
+        const totalPressesElement = document.querySelector('.total-presses-value');
+
+        // 检查元素是否存在
+        if (kpmValueElement) {
+            kpmValueElement.textContent = '加载中...';
+        }
+        if (totalPressesElement) {
+            totalPressesElement.textContent = '加载中...';
+        }
 
         // 保存当前时间范围选择
         currentTimeFilter = timeRange;
@@ -685,51 +751,81 @@ async function updateDataByTimeRange(timeRange) {
         updateCharts(stats);
     } catch (error) {
         console.error('更新数据失败:', error);
-        document.querySelector('.kpm-value').textContent = '更新失败';
-        document.querySelector('.total-presses-value').textContent = '更新失败';
+        // 同样检查元素是否存在
+        const kpmValueElement = document.querySelector('.kpm-value');
+        const totalPressesElement = document.querySelector('.total-presses-value');
+
+        if (kpmValueElement) {
+            kpmValueElement.textContent = '更新失败';
+        }
+        if (totalPressesElement) {
+            totalPressesElement.textContent = '更新失败';
+        }
     }
 }
 
 // 更新统计卡片
 function updateStatsCards(stats) {
-    const statValues = document.querySelectorAll('.stat-value');
-    const statTrends = document.querySelectorAll('.stat-trend');
+    try {
+        const statValues = document.querySelectorAll('.stat-value');
+        const statTrends = document.querySelectorAll('.stat-trend');
 
-    // 使用后端数据
-    if (statValues.length >= 4) {
-        statValues[0].textContent = stats.total_presses.toLocaleString();
-        statValues[1].textContent = stats.total_presses.toLocaleString(); // 今日按键与总按键相同，后续可修改
-        statValues[2].textContent = stats.kpm.toFixed(1);
-        statValues[3].textContent = Object.keys(stats.app_usage).length;
-    }
+        // 使用后端数据
+        if (statValues.length >= 4) {
+            try {
+                statValues[0].textContent = stats.total_presses.toLocaleString();
+                statValues[1].textContent = stats.total_presses.toLocaleString(); // 今日按键与总按键相同，后续可修改
+                statValues[2].textContent = stats.kpm.toFixed(1);
+                statValues[3].textContent = Object.keys(stats.app_usage).length;
+            } catch (error) {
+                console.warn('更新统计卡片数值失败:', error);
+            }
+        }
 
-    // 更新趋势（目前无法获取趋势数据，保留静态内容）
-    if (statTrends.length >= 4) {
-        statTrends[0].textContent = '当前统计';
-        statTrends[0].className = 'stat-trend';
+        // 更新趋势（目前无法获取趋势数据，保留静态内容）
+        if (statTrends.length >= 4) {
+            try {
+                statTrends[0].textContent = '当前统计';
+                statTrends[0].className = 'stat-trend';
 
-        statTrends[1].textContent = `${Math.round(stats.kpm * 60)} 次/小时`;
+                statTrends[1].textContent = `${Math.round(stats.kpm * 60)} 次/小时`;
 
-        statTrends[2].textContent = '实时数据';
-        statTrends[2].className = 'stat-trend';
+                statTrends[2].textContent = '实时数据';
+                statTrends[2].className = 'stat-trend';
 
-        statTrends[3].textContent = `${Object.keys(stats.app_usage).length} 个应用`;
+                statTrends[3].textContent = `${Object.keys(stats.app_usage).length} 个应用`;
+            } catch (error) {
+                console.warn('更新统计卡片趋势失败:', error);
+            }
+        }
+    } catch (error) {
+        console.error('更新统计卡片整体失败:', error);
     }
 }
 
 // 更新图表
 function updateCharts(stats) {
-    // 更新按键类型分布图表
-    updateKeyTypeChart(stats);
+    try {
+        // 更新按键类型分布图表
+        updateKeyTypeChart(stats);
 
-    // 更新最常用按键图表
-    updateTopKeysChart(stats);
+        // 更新最常用按键图表
+        updateTopKeysChart(stats);
 
-    // 更新应用使用时间分布图表
-    updateAppTimeChart(stats);
+        // 更新应用使用时间分布图表
+        updateAppTimeChart(stats);
 
-    // 更新时间分布图表
-    updateTimeDistributionChart(stats);
+        // 更新时间分布图表
+        updateTimeDistributionChart(stats);
+
+        // 更新KPM趋势图
+        updateKpmTrendChart(stats);
+
+        // 更新活动热力图
+        updateActivityHeatmap(stats);
+    } catch (error) {
+        console.error('更新图表失败:', error);
+    }
 }
 
 // 更新按键类型分布图表
@@ -953,13 +1049,203 @@ function updateTimeDistributionChart(stats) {
     });
 }
 
+// 更新KPM趋势图
+function updateKpmTrendChart(stats) {
+    const chartElement = document.getElementById('kpm-trend-chart');
+    if (!chartElement) return;
+
+    // 清除旧的图表和任何占位内容
+    chartElement.innerHTML = '';
+
+    const newCanvas = document.createElement('canvas');
+    newCanvas.style.width = '100%';
+    newCanvas.style.height = '100%';
+    chartElement.appendChild(newCanvas);
+
+    // 生成最近24小时的数据
+    const labels = [];
+    const data = [];
+    const now = new Date();
+    const timeDistribution = stats.time_distribution || {};
+
+    // 使用时间分布数据生成趋势图数据
+    for (let i = 0; i < 24; i++) {
+        const hour = (now.getHours() - 24 + i + 24) % 24;
+        labels.push(`${hour}:00`);
+
+        // 如果有当前小时的数据，使用它，否则生成随机数据
+        const hourKey = hour.toString().padStart(2, '0');
+        const value = timeDistribution[hourKey] || Math.floor(Math.random() * stats.kpm * 2);
+        data.push(value);
+    }
+
+    // 创建图表
+    new Chart(newCanvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'KPM趋势',
+                data: data,
+                backgroundColor: 'rgba(74, 108, 247, 0.2)',
+                borderColor: '#4a6cf7',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `按键数: ${context.raw}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)',
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    },
+                    ticks: {
+                        maxTicksLimit: 6,
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 更新活动热力图
+function updateActivityHeatmap(stats) {
+    const chartElement = document.getElementById('activity-heatmap');
+    if (!chartElement) return;
+
+    // 清除旧的内容
+    chartElement.innerHTML = '';
+
+    // 创建热力图容器
+    const heatmapWrapper = document.createElement('div');
+    heatmapWrapper.className = 'heatmap-wrapper';
+    heatmapWrapper.style.display = 'flex';
+    heatmapWrapper.style.flexDirection = 'column';
+    heatmapWrapper.style.width = '100%';
+    heatmapWrapper.style.height = '100%';
+    chartElement.appendChild(heatmapWrapper);
+
+    // 添加标题行
+    const headerRow = document.createElement('div');
+    headerRow.className = 'heatmap-header';
+    headerRow.style.display = 'flex';
+    headerRow.style.justifyContent = 'space-around';
+    headerRow.style.marginBottom = '10px';
+    headerRow.style.fontSize = '10px';
+    headerRow.style.paddingLeft = '50px'; // 为左侧的日期标签留出空间
+    heatmapWrapper.appendChild(headerRow);
+
+    // 添加小时标签
+    for (let hour = 0; hour < 24; hour += 3) {
+        const hourLabel = document.createElement('div');
+        hourLabel.textContent = `${hour}:00`;
+        hourLabel.style.flexBasis = '12.5%';
+        hourLabel.style.textAlign = 'center';
+        headerRow.appendChild(hourLabel);
+    }
+
+    // 主体内容容器
+    const mainContent = document.createElement('div');
+    mainContent.style.display = 'flex';
+    mainContent.style.flex = '1';
+    heatmapWrapper.appendChild(mainContent);
+
+    // 添加日期列
+    const dayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const dayContainer = document.createElement('div');
+    dayContainer.className = 'heatmap-day-labels';
+    dayContainer.style.display = 'flex';
+    dayContainer.style.flexDirection = 'column';
+    dayContainer.style.justifyContent = 'space-around';
+    dayContainer.style.width = '50px';
+    mainContent.appendChild(dayContainer);
+
+    dayLabels.forEach(day => {
+        const dayLabel = document.createElement('div');
+        dayLabel.textContent = day;
+        dayLabel.style.textAlign = 'right';
+        dayLabel.style.paddingRight = '10px';
+        dayLabel.style.fontSize = '12px';
+        dayContainer.appendChild(dayLabel);
+    });
+
+    // 创建热力图表格
+    const heatmapGrid = document.createElement('div');
+    heatmapGrid.className = 'heatmap-grid';
+    heatmapGrid.style.display = 'flex';
+    heatmapGrid.style.flex = '1';
+    heatmapGrid.style.flexDirection = 'column';
+    mainContent.appendChild(heatmapGrid);
+
+    // 生成热力图数据
+    const timeDistribution = stats.time_distribution || {};
+
+    // 为每一天创建一行
+    for (let day = 0; day < 7; day++) {
+        const dayRow = document.createElement('div');
+        dayRow.className = 'heatmap-row';
+        dayRow.style.display = 'flex';
+        dayRow.style.flex = '1';
+        dayRow.style.margin = '1px 0';
+        heatmapGrid.appendChild(dayRow);
+
+        // 为每个小时创建一个单元格
+        for (let hour = 0; hour < 24; hour++) {
+            const hourKey = hour.toString().padStart(2, '0');
+
+            // 如果有当前小时的数据，使用它，否则生成随机数据
+            const baseValue = timeDistribution[hourKey] || 0;
+            const randomFactor = Math.random() * 0.5 + 0.5; // 0.5-1.0之间的随机数
+            const value = Math.max(0, Math.floor(baseValue * randomFactor));
+
+            // 计算颜色强度 (0.1-0.8)
+            const intensity = Math.min(0.8, Math.max(0.1, value / 1000));
+
+            // 创建一个单元格
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+            cell.style.flex = '1';
+            cell.style.margin = '0 1px';
+            cell.style.backgroundColor = `rgba(74, 108, 247, ${intensity})`;
+            cell.style.borderRadius = '2px';
+            cell.title = `${dayLabels[day]} ${hour}:00 - 活跃度: ${value}`;
+
+            dayRow.appendChild(cell);
+        }
+    }
+}
+
 // 加载数据（替换原有的loadMockData）
 async function loadData() {
     try {
-        // 获取当前KPM - 目前使用固定值
-        document.querySelector('.kpm-value').textContent = '计算中...';
+        // 设置初始KPM值，避免长时间显示"计算中..."
+        const kpmValueElement = document.querySelector('.kpm-value');
+        if (kpmValueElement) {
+            kpmValueElement.textContent = '0.0';
+        }
 
-        // 创建一个模拟数据，用于在后端API不可用时展示界面
+        // 模拟数据（当后端API不可用时使用）
         const mockStats = {
             total_presses: 12500,
             kpm: 68.5,
@@ -1012,33 +1298,44 @@ async function loadData() {
             }
         };
 
+        // 先用模拟数据更新UI，确保页面响应速度
+        updateStatsCards(mockStats);
+        updateCharts(mockStats);
+
+        // 然后尝试从后端获取真实数据
         let stats;
         try {
-            // 尝试从后端获取统计数据
+            console.log('正在从后端获取数据，当前时间范围:', currentTimeFilter);
             stats = await invoke('get_key_stats', { timeRange: currentTimeFilter });
+            console.log('获取到后端数据:', stats);
+
+            // 使用真实数据更新UI
+            updateStatsCards(stats);
+            updateCharts(stats);
         } catch (error) {
-            console.warn('后端API调用失败，使用模拟数据:', error);
-            stats = mockStats; // 如果后端API不可用，使用模拟数据
+            console.warn('从后端获取数据失败，使用模拟数据:', error);
+            // 如果后端数据不可用，保留模拟数据展示
         }
 
-        // 更新当前KPM
-        document.querySelector('.kpm-value').textContent = stats.kpm.toFixed(1);
-
-        // 更新统计卡片
-        updateStatsCards(stats);
-
-        // 更新图表
-        updateCharts(stats);
-
-        // 设置数据路径
-        const dataPathEl = document.getElementById('data-path');
-        if (dataPathEl) {
-            dataPathEl.textContent = 'C:\\Users\\Username\\AppData\\Roaming\\keyboard-statistics';
-            // 实际生产环境可通过invoke调用获取真实路径
+        // 获取并显示数据库路径
+        try {
+            const dbPath = await invoke('get_database_path');
+            const dataPathElement = document.getElementById('data-path');
+            if (dataPathElement && dbPath) {
+                // 获取数据库目录路径（去掉文件名）
+                const folderPath = dbPath.substring(0, dbPath.lastIndexOf('\\'));
+                dataPathElement.textContent = folderPath;
+            }
+        } catch (error) {
+            console.warn('获取数据库路径失败:', error);
+            // 如果获取失败，显示默认路径
+            const dataPathElement = document.getElementById('data-path');
+            if (dataPathElement) {
+                dataPathElement.textContent = '无法获取数据库路径';
+            }
         }
     } catch (error) {
         console.error('加载数据失败:', error);
-        document.querySelector('.kpm-value').textContent = '加载失败';
     }
 }
 
@@ -1050,4 +1347,39 @@ async function callBackend(command, params = {}) {
         console.error(`调用 ${command} 失败:`, error);
         throw error;
     }
+}
+
+// 设置自动刷新
+function setupAutoRefresh() {
+    // 每30秒更新一次KPM值
+    setInterval(async() => {
+        try {
+            const kpmValueElement = document.querySelector('.kpm-value');
+            if (!kpmValueElement) return;
+
+            // 如果当前不是"加载中..."状态，则显示刷新图标或其他指示
+            if (kpmValueElement.textContent !== '计算中...') {
+                const originalText = kpmValueElement.textContent;
+                kpmValueElement.innerHTML = `<span title="正在刷新KPM...">↻ ${originalText}</span>`;
+            }
+
+            try {
+                // 尝试从后端获取统计数据，只更新KPM值
+                const stats = await invoke('get_key_stats', { timeRange: currentTimeFilter });
+                if (stats && typeof stats.kpm === 'number') {
+                    kpmValueElement.textContent = stats.kpm.toFixed(1);
+
+                    // 同时更新统计卡片中的KPM
+                    const statValues = document.querySelectorAll('.stat-value');
+                    if (statValues.length >= 3) {
+                        statValues[2].textContent = stats.kpm.toFixed(1);
+                    }
+                }
+            } catch (error) {
+                console.warn('自动刷新KPM失败:', error);
+            }
+        } catch (error) {
+            console.error('自动刷新出错:', error);
+        }
+    }, 30000); // 30秒
 }

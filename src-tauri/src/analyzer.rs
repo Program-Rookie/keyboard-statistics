@@ -1,5 +1,5 @@
 use crate::database::KeyboardEventRecord;
-use chrono::{DateTime, Local, Duration};
+use chrono::{DateTime, Local, Duration, NaiveDateTime, TimeZone};
 use rusqlite::Connection;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
@@ -47,7 +47,13 @@ impl DataAnalyzer {
     fn get_time_range(&self, time_range: &str) -> Result<(DateTime<Local>, DateTime<Local>), rusqlite::Error> {
         let now = Local::now();
         let (start_time, end_time) = match time_range {
-            "today" => (now.date().and_hms(0, 0, 0), now),
+            "today" => {
+                let today = now.date_naive().and_hms_opt(0, 0, 0)
+                    .unwrap_or_else(|| now.naive_local());
+                let start = Local.from_local_datetime(&today).single()
+                    .unwrap_or(now);
+                (start, now)
+            },
             "week" => (now - Duration::days(7), now),
             "month" => (now - Duration::days(30), now),
             "all" => (now - Duration::days(365), now),

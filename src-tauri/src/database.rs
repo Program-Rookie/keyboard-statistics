@@ -1,6 +1,7 @@
 use rusqlite::{Connection, Result, params};
 use chrono::{DateTime, Local};
 use serde::{Serialize, Deserialize};
+use serde_json;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyboardEventRecord {
@@ -219,9 +220,138 @@ pub fn calculate_average_kpm(
 }
 
 // 清空所有数据
-pub fn clear_all_data(conn: &Connection) -> Result<()> {
+pub fn clear_all_data(conn: &mut Connection) -> Result<()> {
     conn.execute("DELETE FROM keyboard_events", [])?;
     conn.execute("DELETE FROM app_stats", [])?;
     conn.execute("DELETE FROM key_stats", [])?;
     Ok(())
+}
+
+// 导出数据为JSON格式
+pub fn export_data_as_json(
+    conn: &Connection, 
+    start_time: DateTime<Local>, 
+    end_time: DateTime<Local>
+) -> Result<String> {
+    let events = query_events_by_time_range(conn, start_time, end_time)?;
+    let json = serde_json::to_string(&events)
+        .map_err(|e| rusqlite::Error::InvalidQuery)?; // 简单转换错误类型
+    Ok(json)
+}
+
+// 导出数据为CSV格式
+pub fn export_data_as_csv(
+    conn: &Connection, 
+    start_time: DateTime<Local>, 
+    end_time: DateTime<Local>
+) -> Result<String> {
+    let events = query_events_by_time_range(conn, start_time, end_time)?;
+    
+    let mut csv_content = String::from("timestamp,key_code,app_name,window_title\n");
+    for event in events {
+        // 简单处理CSV，实际项目中可能需要更复杂的转义处理
+        let line = format!("{},{},\"{}\",\"{}\"\n",
+            event.timestamp.to_rfc3339(),
+            event.key_code.replace(',', "\\,"),
+            event.app_name.replace('"', "\"\""),
+            event.window_title.replace('"', "\"\"")
+        );
+        csv_content.push_str(&line);
+    }
+    
+    Ok(csv_content)
+}
+
+// 删除指定时间范围内的数据
+pub fn delete_data_by_time_range(
+    conn: &mut Connection, 
+    start_time: DateTime<Local>, 
+    end_time: DateTime<Local>
+) -> Result<usize> {
+    // 获取要删除的按键记录和应用记录
+    let key_counts: Vec<(String, i64)>;
+    let app_counts: Vec<(String, i64)>;
+    
+    // 在独立作用域中获取数据，确保stmt被释放
+    {
+        let mut stmt = conn.prepare(
+            "SELECT key_code, COUNT(*) as count 
+             FROM keyboard_events 
+             WHERE timestamp BETWEEN ?1 AND ?2
+             GROUP BY key_code"
+        )?;
+        
+        key_counts = stmt.query_map(
+            params![start_time.to_rfc3339(), end_time.to_rfc3339()],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        )?
+        .filter_map(|r| r.ok())
+        .collect();
+    }
+    
+    // 在独立作用域中获取数据，确保stmt被释放
+    {
+        let mut stmt = conn.prepare(
+            "SELECT app_name, COUNT(*) as count 
+             FROM keyboard_events 
+             WHERE timestamp BETWEEN ?1 AND ?2
+             GROUP BY app_name"
+        )?;
+        
+        app_counts = stmt.query_map(
+            params![start_time.to_rfc3339(), end_time.to_rfc3339()],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        )?
+        .filter_map(|r| r.ok())
+        .collect();
+    }
+    
+    // 开始事务
+    let tx = conn.transaction()?;
+    
+    // 删除键盘事件记录
+    let deleted_count = tx.execute(
+        "DELETE FROM keyboard_events 
+         WHERE timestamp BETWEEN ?1 AND ?2",
+        params![start_time.to_rfc3339(), end_time.to_rfc3339()],
+    )?;
+    
+    // 更新按键统计
+    for (key, count) in key_counts {
+        tx.execute(
+            "UPDATE key_stats 
+             SET count = count - ?1 
+             WHERE key_code = ?2",
+            params![count, key],
+        )?;
+        
+        // 删除计数为0的记录
+        tx.execute(
+            "DELETE FROM key_stats 
+             WHERE count <= 0",
+            [],
+        )?;
+    }
+    
+    // 更新应用统计
+    for (app, count) in app_counts {
+        tx.execute(
+            "UPDATE app_stats 
+             SET key_count = key_count - ?1 
+             WHERE app_name = ?2",
+            params![count, app],
+        )?;
+        
+        // 删除计数为0的记录
+        tx.execute(
+            "DELETE FROM app_stats 
+             WHERE key_count <= 0",
+            [],
+        )?;
+    }
+    
+    // 提交事务
+    tx.commit()?;
+    
+    Ok(deleted_count)
 }
