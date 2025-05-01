@@ -14,6 +14,7 @@ use tauri::{AppHandle, Emitter};
 use indexmap::IndexSet;
 use crate::database::{init_db, insert_event, KeyboardEventRecord};
 use std::sync::Mutex;
+use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KeyboardEvent {
@@ -30,10 +31,11 @@ pub struct KeyboardMonitor {
     app_handle: Option<AppHandle>,
     pressed_keys: Arc<std::sync::Mutex<IndexSet<String>>>, // 新增
     db_conn: Option<Arc<Mutex<rusqlite::Connection>>>, // 新增，持有数据库连接
+    app_dir: PathBuf, // 新增字段
 }
 
 impl KeyboardMonitor {
-    pub fn new() -> Self {
+    pub fn new(app_dir: PathBuf) -> Self {
         KeyboardMonitor {
             sender: None,
             is_running: false,
@@ -41,6 +43,7 @@ impl KeyboardMonitor {
             app_handle: None,
             pressed_keys: Arc::new(std::sync::Mutex::new(IndexSet::new())), // 新增
             db_conn: None, // 新增
+            app_dir, // 新增字段
         }
     }
     // 设置 AppHandle
@@ -67,8 +70,8 @@ impl KeyboardMonitor {
 
         // 初始化数据库连接，只初始化一次
         if self.db_conn.is_none() {
-            let db_path = "keyboard_events.db";
-            let conn = match crate::database::init_db(db_path) {
+            let db_path = self.app_dir.join("keyboard_events.db"); // 使用 app_dir
+            let conn = match crate::database::init_db(db_path.to_str().unwrap()) {
                 Ok(c) => Arc::new(Mutex::new(c)),
                 Err(e) => {
                     println!("数据库初始化失败: {:?}", e);
@@ -114,9 +117,11 @@ impl KeyboardMonitor {
                             app_name: event.app_name.clone(),
                             window_title: event.window_title.clone(),
                         };
-                        let conn = db_conn.lock().unwrap();
-                        if let Err(e) = crate::database::insert_event(&conn, &record) {
-                            println!("插入数据库失败: {:?}", e);
+                        // 使用锁保护数据库操作
+                        if let Ok(conn) = db_conn.lock() {
+                            if let Err(e) = crate::database::insert_event(&conn, &record) {
+                                println!("插入数据库失败: {:?}", e);
+                            }
                         }
 
                         if let Some(handle) = &app_handle {

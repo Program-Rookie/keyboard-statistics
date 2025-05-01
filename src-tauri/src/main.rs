@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod keyboard;
+pub mod keyboard;
 pub mod database;
 use keyboard::KeyboardMonitor;
 use tauri::{
@@ -126,7 +126,7 @@ impl AppState {
         AppState {
             config: Mutex::new(config),
             config_path,
-            keyboard_monitor: Mutex::new(KeyboardMonitor::new()),
+            keyboard_monitor: Mutex::new(KeyboardMonitor::new(app_dir)),
         }
     }
     fn save_config(&self) -> Result<(), String> {
