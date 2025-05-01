@@ -92,9 +92,8 @@ impl KeyboardMonitor {
                         let key_code = key_to_string(&key);
                         let mut keys = pressed_keys.lock().unwrap();
                         let has_modifier = keys.iter().any(|k| matches!(k.as_str(), "Ctrl" | "Shift" | "Alt" | "Win"));
-                        if !keys.insert(key_code.clone()) {
-                            return;
-                        }
+                        // 检查按键是否已存在
+                        let is_new_key = keys.insert(key_code.clone());
                         if (!has_modifier) {
                             keys.clear();
                             keys.insert(key_code.clone());
@@ -122,6 +121,10 @@ impl KeyboardMonitor {
                             if let Err(e) = crate::database::insert_event(&conn, &record) {
                                 println!("插入数据库失败: {:?}", e);
                             }
+                        }
+                        // 不是新按键，不发送事件
+                        if !is_new_key {
+                            return;
                         }
 
                         if let Some(handle) = &app_handle {
