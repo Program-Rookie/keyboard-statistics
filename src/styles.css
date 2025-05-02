@@ -311,24 +311,28 @@ body {
 }
 
 .chart-card {
-    background-color: #fff;
+    background-color: var(--card-bg);
     border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px var(--shadow-color);
-}
-
-.chart-card.full-width {
-    grid-column: 1 / -1;
+    box-shadow: var(--card-shadow);
+    padding: 15px;
+    height: 300px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
 .chart-card h3 {
-    font-size: 1rem;
-    color: var(--secondary-color);
-    margin-bottom: 15px;
+    font-size: 16px;
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--text-color);
+    font-weight: 500;
 }
 
 .chart {
     width: 100%;
+    height: calc(100% - 30px);
+    /* 减小图表容器高度，留出标题空间 */
     position: relative;
 }
 
@@ -340,6 +344,10 @@ body {
     color: var(--secondary-color);
     background-color: #f8f9fa;
     border-radius: 4px;
+}
+
+.chart-card.full-width {
+    grid-column: 1 / -1;
 }
 
 

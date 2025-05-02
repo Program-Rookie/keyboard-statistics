@@ -8,7 +8,6 @@ pub struct KeyboardEventRecord {
     pub timestamp: DateTime<Local>,
     pub key_code: String,
     pub app_name: String,
-    pub window_title: String,
 }
 
 // 初始化数据库，创建必要的表
@@ -21,8 +20,7 @@ pub fn init_db(db_path: &str) -> Result<Connection> {
             id INTEGER PRIMARY KEY,
             timestamp TEXT NOT NULL,
             key_code TEXT NOT NULL,
-            app_name TEXT NOT NULL,
-            window_title TEXT NOT NULL
+            app_name TEXT NOT NULL
         )",
         [],
     )?;
@@ -58,13 +56,12 @@ pub fn init_db(db_path: &str) -> Result<Connection> {
 pub fn insert_event(conn: &Connection, event: &KeyboardEventRecord) -> Result<()> {
     // 插入事件记录
     conn.execute(
-        "INSERT INTO keyboard_events (timestamp, key_code, app_name, window_title) 
-         VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO keyboard_events (timestamp, key_code, app_name) 
+         VALUES (?1, ?2, ?3)",
         params![
             event.timestamp.to_rfc3339(),
             event.key_code,
-            event.app_name,
-            event.window_title
+            event.app_name
         ],
     )?;
     println!("插入事件记录成功");
@@ -102,7 +99,7 @@ pub fn query_events_by_time_range(
     end_time: DateTime<Local>
 ) -> Result<Vec<KeyboardEventRecord>> {
     let mut stmt = conn.prepare(
-        "SELECT timestamp, key_code, app_name, window_title 
+        "SELECT timestamp, key_code, app_name 
          FROM keyboard_events 
          WHERE timestamp BETWEEN ?1 AND ?2
          ORDER BY timestamp DESC"
@@ -120,7 +117,6 @@ pub fn query_events_by_time_range(
                 timestamp,
                 key_code: row.get(1)?,
                 app_name: row.get(2)?,
-                window_title: row.get(3)?,
             })
         },
     )?;
@@ -241,7 +237,6 @@ pub fn export_data_as_json(
         map.insert("readable_time".to_string(), serde_json::Value::String(event.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()));
         map.insert("key_code".to_string(), serde_json::Value::String(event.key_code.clone()));
         map.insert("app_name".to_string(), serde_json::Value::String(event.app_name.clone()));
-        map.insert("window_title".to_string(), serde_json::Value::String(event.window_title.clone()));
         serde_json::Value::Object(map)
     }).collect();
     
@@ -258,17 +253,16 @@ pub fn export_data_as_csv(
 ) -> Result<String> {
     let events = query_events_by_time_range(conn, start_time, end_time)?;
     
-    let mut csv_content = String::from("readable_time,key_code,app_name,window_title\n");
+    let mut csv_content = String::from("readable_time,key_code,app_name\n");
     for event in events {
         // 格式化时间戳为易读格式
         let readable_time = event.timestamp.format("%Y-%m-%d %H:%M:%S").to_string();
         
         // 简单处理CSV，实际项目中可能需要更复杂的转义处理
-        let line = format!("{},\"{}\",\"{}\",\"{}\"\n",
+        let line = format!("{},\"{}\",\"{}\"\n",
             readable_time,
             event.key_code.replace(',', "\\,"),
-            event.app_name.replace('"', "\"\""),
-            event.window_title.replace('"', "\"\"")
+            event.app_name.replace('"', "\"\"")
         );
         csv_content.push_str(&line);
     }

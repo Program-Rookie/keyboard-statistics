@@ -21,7 +21,6 @@ pub struct KeyboardEvent {
     timestamp: DateTime<Local>,
     key_code: String,
     app_name: String,
-    window_title: String,
 }
 
 pub struct KeyboardMonitor {
@@ -98,14 +97,13 @@ impl KeyboardMonitor {
                             keys.clear();
                             keys.insert(key_code.clone());
                         }
-                        let (app_name, window_title) = get_active_window_info();
+                        let app_name = get_active_window_info();
                         let mut keys_vec: Vec<_> = keys.iter().cloned().collect();
                         let combo = keys_vec.join("+");
                         let event = KeyboardEvent {
                             timestamp: Local::now(),
                             key_code: combo.clone(),
                             app_name,
-                            window_title,
                         };
                         println!("{:?}", event);
                         let _ = tx.send(event.clone());
@@ -114,7 +112,6 @@ impl KeyboardMonitor {
                             timestamp: event.timestamp,
                             key_code: event.key_code.clone(),
                             app_name: event.app_name.clone(),
-                            window_title: event.window_title.clone(),
                         };
                         // 使用锁保护数据库操作
                         if let Ok(conn) = db_conn.lock() {
@@ -161,17 +158,11 @@ impl KeyboardMonitor {
 struct KeyPressedPayload {
     key_code: String,
 }
-fn get_active_window_info() -> (String, String) {
+fn get_active_window_info() -> String {
     unsafe {
         let hwnd = GetForegroundWindow();
         let mut title = [0u16; 512];
         let mut process_name = String::new();
-        let mut window_title = String::new();
-
-        // 获取窗口标题
-        if GetWindowTextW(hwnd, &mut title) > 0 {
-            window_title = String::from_utf16_lossy(&title[..title.iter().position(|&x| x == 0).unwrap_or(title.len())]);
-        }
 
         // 获取进程名称
         let mut pid = 0u32;
@@ -190,7 +181,7 @@ fn get_active_window_info() -> (String, String) {
             }
         }
 
-        (process_name, window_title)
+        process_name
     }
 }
 

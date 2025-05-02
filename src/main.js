@@ -835,14 +835,8 @@ function updateCharts(stats) {
         // 应用使用统计 - 恢复应用按键数量排行图表的更新
         updateAppKeysChart(stats);
 
-        // 时间分布图表
-        updateTimeDistributionChart(stats);
-
         // 活动热力图
         updateActivityHeatmap(stats);
-
-        // 按键类型详细分布图
-        updateKeyDetailChart(stats);
 
         // 常用组合键图表
         updateKeyComboChart(stats);
@@ -1315,7 +1309,6 @@ function updateActivityHeatmap(stats) {
             createWeekHeatmap(heatmapWrapper, heatmapData); // 默认使用周热力图样式
     }
 
-    heatmapWrapper.insertBefore(heatmapWrapper.firstChild);
 }
 
 // 创建今日热力图（按小时）
@@ -1866,105 +1859,6 @@ function setupAutoRefresh() {
     }, 5000); // 5秒
 }
 
-// 更新按键类型详细分布图表
-function updateKeyDetailChart(stats) {
-    const chartElement = document.getElementById('key-category-chart');
-    if (!chartElement) return;
-
-    // 清除旧的图表
-    chartElement.innerHTML = '';
-    const canvas = document.createElement('canvas');
-    chartElement.appendChild(canvas);
-
-    // 处理数据 - 使用key_categories
-    const categories = stats.key_categories || {};
-    const labels = Object.keys(categories);
-    const data = Object.values(categories);
-
-    // 如果没有数据，显示提示信息
-    if (labels.length === 0) {
-        const noDataMessage = document.createElement('div');
-        noDataMessage.className = 'no-data-message';
-        noDataMessage.textContent = '暂无数据';
-        noDataMessage.style.display = 'flex';
-        noDataMessage.style.justifyContent = 'center';
-        noDataMessage.style.alignItems = 'center';
-        noDataMessage.style.height = '100%';
-        noDataMessage.style.fontSize = '18px';
-        noDataMessage.style.color = '#aaa';
-        chartElement.appendChild(noDataMessage);
-        return;
-    }
-
-    // 鲜艳多彩的配色方案
-    const colors = [
-        '#FF5722', // 深橙色
-        '#3F51B5', // 靛蓝色
-        '#009688', // 茶绿色
-        '#FFC107', // 琥珀色
-        '#673AB7', // 深紫色
-        '#E91E63', // 粉红色
-        '#03A9F4', // 浅蓝色
-        '#8BC34A', // 浅绿色
-        '#9C27B0', // 紫色
-        '#CDDC39', // 酸橙色
-        '#795548', // 棕色
-        '#607D8B' // 蓝灰色
-    ];
-
-    // 创建图表 - 使用扁平简约风格的饼图
-    new Chart(canvas, {
-        type: 'pie', // 改用饼图而非环形图，更简约
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderColor: '#ffffff',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: {
-                padding: 10
-            },
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        font: {
-                            size: 11
-                        },
-                        boxWidth: 12, // 更小的图例框
-                        padding: 10
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.7)',
-                    titleFont: {
-                        size: 12
-                    },
-                    bodyFont: {
-                        size: 11
-                    },
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const dataset = context.dataset;
-                            const total = dataset.data.reduce((acc, current) => acc + current, 0);
-                            const percentage = Math.round((value / total) * 100);
-                            return `${label}: ${percentage}% (${value})`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
 // 更新常用组合键图表
 function updateKeyComboChart(stats) {
     const chartElement = document.getElementById('key-combo-chart');
@@ -1975,11 +1869,11 @@ function updateKeyComboChart(stats) {
     const canvas = document.createElement('canvas');
     chartElement.appendChild(canvas);
 
-    // 从后端获取组合键数据
+    // 尝试从stats中获取组合键数据
     let keyCombos = [];
     let hasData = false;
 
-    // 尝试从stats中获取组合键数据
+    // 仅在stats中有key_combos数据时才显示数据
     if (stats.key_combos && stats.key_combos.length > 0) {
         keyCombos = stats.key_combos;
         hasData = true;
@@ -2000,6 +1894,7 @@ function updateKeyComboChart(stats) {
         return;
     }
 
+    // console.log("key_combos:", stats.key_combos)
     // 准备图表数据
     const labels = keyCombos.map(item => item.combo);
     const data = keyCombos.map(item => item.count);
@@ -2551,121 +2446,6 @@ function updateWeeklyDistributionChart(stats) {
     });
 }
 
-// 更新时间分布图表
-function updateTimeDistributionChart(stats) {
-    const chartElement = document.getElementById('hourly-distribution-chart');
-    if (!chartElement) return;
-
-    // 清除旧的图表
-    chartElement.innerHTML = '';
-    const newCanvas = document.createElement('canvas');
-    chartElement.appendChild(newCanvas);
-
-    // 设置图表容器固定高度
-    chartElement.style.height = '300px';
-    chartElement.style.maxHeight = '300px';
-    chartElement.style.overflow = 'hidden';
-
-    // 准备数据：小时分布
-    const timeData = new Array(24).fill(0);
-
-    // 从time_distribution获取数据
-    if (stats.time_distribution && Object.keys(stats.time_distribution).length > 0) {
-        Object.entries(stats.time_distribution).forEach(([hour, count]) => {
-            const hourNum = parseInt(hour, 10);
-            if (!isNaN(hourNum) && hourNum >= 0 && hourNum < 24) {
-                timeData[hourNum] = count;
-            }
-        });
-    }
-
-    const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
-
-    // 创建渐变背景
-    const getGradient = (ctx) => {
-        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, 'rgba(75, 192, 192, 0.6)');
-        gradient.addColorStop(1, 'rgba(75, 192, 192, 0.1)');
-        return gradient;
-    };
-
-    // 创建图表 - 使用曲线图和渐变填充
-    new Chart(newCanvas, {
-        type: 'line',
-        data: {
-            labels: hours,
-            datasets: [{
-                label: '按键活动',
-                data: timeData,
-                backgroundColor: function(context) {
-                    const chart = context.chart;
-                    const { ctx, chartArea } = chart;
-                    if (!chartArea) return null;
-                    return getGradient(ctx);
-                },
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 2,
-                pointRadius: 3,
-                pointBackgroundColor: '#ffffff',
-                pointBorderColor: 'rgba(75, 192, 192, 1)',
-                pointBorderWidth: 1.5,
-                tension: 0.4, // 平滑曲线
-                fill: true
-            }],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false,
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.7)',
-                    titleFont: {
-                        size: 12
-                    },
-                    bodyFont: {
-                        size: 11
-                    },
-                    callbacks: {
-                        title: function(context) {
-                            return `时间: ${context[0].label}`;
-                        },
-                        label: function(context) {
-                            return `按键数量: ${context.raw.toLocaleString()}`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    },
-                    ticks: {
-                        font: {
-                            size: 10
-                        }
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        maxTicksLimit: 8,
-                        font: {
-                            size: 10
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
 // 应用按键数量排行图表
 function updateAppKeysChart(stats) {
     const chartElement = document.getElementById('app-keys-chart');
@@ -2727,7 +2507,7 @@ function updateAppKeysChart(stats) {
                 backgroundColor: colors,
                 borderWidth: 0,
                 borderRadius: 4,
-                maxBarThickness: 18
+                maxBarThickness: 16 // 减小条形高度使其更紧凑
             }],
         },
         options: {
@@ -2738,8 +2518,8 @@ function updateAppKeysChart(stats) {
                 padding: {
                     left: 0,
                     right: 10,
-                    top: 5,
-                    bottom: 5
+                    top: 0, // 减少上下间距
+                    bottom: 0
                 }
             },
             plugins: {
@@ -2768,7 +2548,15 @@ function updateAppKeysChart(stats) {
                     },
                     ticks: {
                         font: {
-                            size: 11
+                            size: 10 // 减小字体大小
+                        },
+                        callback: function(value, index) {
+                            const appName = this.getLabelForValue(value);
+                            // 限制应用名长度，避免溢出
+                            if (appName.length > 15) {
+                                return appName.substring(0, 13) + '...';
+                            }
+                            return appName;
                         }
                     }
                 },
@@ -2780,7 +2568,9 @@ function updateAppKeysChart(stats) {
                     ticks: {
                         font: {
                             size: 10
-                        }
+                        },
+                        // 减少刻度数量，使图表更紧凑
+                        maxTicksLimit: 6
                     }
                 },
             },

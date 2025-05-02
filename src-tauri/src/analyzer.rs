@@ -476,11 +476,31 @@ impl DataAnalyzer {
     // 获取常用组合键
     fn get_key_combos(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>, limit: usize) 
         -> Result<Vec<KeyCombo>, rusqlite::Error> {
-        // 注意：这个函数实现假设数据库中有一个key_combos表或类似的存储组合键信息的表
-        // 如果数据库结构不支持这种查询，则返回空数组
+        // 查询组合键使用情况
+        let mut stmt = self.conn.prepare(
+            "SELECT key_code, COUNT(*) as count 
+             FROM keyboard_events 
+             WHERE timestamp BETWEEN ?1 AND ?2 
+             AND key_code LIKE '%+%' 
+             GROUP BY key_code 
+             ORDER BY count DESC 
+             LIMIT ?3"
+        )?;
         
-        // 返回空数组，不再返回模拟数据
-        let combos = Vec::new();
+        let rows = stmt.query_map(
+            params![start_time.to_rfc3339(), end_time.to_rfc3339(), limit as i64],
+            |row| {
+                Ok(KeyCombo {
+                    combo: row.get::<_, String>(0)?,
+                    count: row.get::<_, u64>(1)?
+                })
+            }
+        )?;
+        
+        let mut combos = Vec::new();
+        for row in rows {
+            combos.push(row?);
+        }
         
         Ok(combos)
     }
@@ -504,8 +524,51 @@ impl DataAnalyzer {
             top_apps
         };
         
-        // 目前我们只返回空数据，实际项目中应该基于数据库中的时间分布数据
+        // 准备返回结果
         let mut result = Vec::new();
+        
+        // 对于每个应用，获取其24小时的使用分布
+        for (app_name, _) in &top_apps {
+            // 查询该应用在24小时内的使用分布
+            let mut stmt = self.conn.prepare(
+                "SELECT strftime('%H', datetime(timestamp, 'localtime')) as hour, COUNT(*) as count 
+                 FROM keyboard_events 
+                 WHERE timestamp BETWEEN ?1 AND ?2 
+                 AND app_name = ?3
+                 GROUP BY hour
+                 ORDER BY hour"
+            )?;
+            
+            let hour_rows = stmt.query_map(
+                params![start_time.to_rfc3339(), end_time.to_rfc3339(), app_name],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, u64>(1)?
+                    ))
+                }
+            )?;
+            
+            // 创建24小时的数据数组，初始化为0
+            let mut hourly_data = vec![0u64; 24];
+            
+            // 填充实际数据
+            for hour_row in hour_rows {
+                if let Ok((hour_str, count)) = hour_row {
+                    if let Ok(hour) = hour_str.parse::<usize>() {
+                        if hour < 24 {
+                            hourly_data[hour] = count;
+                        }
+                    }
+                }
+            }
+            
+            // 添加到结果
+            result.push(AppTimeData {
+                label: app_name.clone(),
+                data: hourly_data,
+            });
+        }
         
         Ok(result)
     }
