@@ -25,6 +25,12 @@ fn get_key_stats(app: tauri::AppHandle, time_range: &str) -> Result<KeyStats, St
     keyboard_statistics_lib::get_key_stats(app, time_range)
 }
 
+// 添加获取当前KPM命令
+#[tauri::command]
+fn get_current_kpm(app: tauri::AppHandle) -> Result<f64, String> {
+    keyboard_statistics_lib::get_current_kpm(app)
+}
+
 // 添加导出数据命令
 #[tauri::command]
 async fn export_data(app: tauri::AppHandle, format: &str, range: &str, type_str: &str) -> Result<String, String> {
@@ -326,6 +332,7 @@ fn main() {
             stop_recording,
             get_recording_status,
             get_key_stats,
+            get_current_kpm,
             export_data,
             delete_data,
             clear_all_data,

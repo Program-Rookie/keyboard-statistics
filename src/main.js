@@ -53,11 +53,18 @@ window.addEventListener("DOMContentLoaded", async() => {
 // 初始化overlay窗口
 function createOverlayWindow() {
     console.log('尝试创建overlay窗口');
+    // 如果key_popup不存在则创建 有bug所以先屏蔽
+    // const existingPopup = WebviewWindow.getByLabel('key_popup');
+    // if (existingPopup) {
+    //     console.log('key_popup 窗口已存在');
+    //     return;
+    // }
     const monitor = currentMonitor();
+
     monitor.then((monitor) => {
         console.log('当前显示器信息:', monitor);
         const winWidth = 300;
-        const winHeight = 60;
+        const winHeight = 300;
         const x = 80;
         const y = monitor.size.height - winHeight - 80;
         const popup = new WebviewWindow('key_popup', {
@@ -84,10 +91,10 @@ function createOverlayWindow() {
             // 设置窗口忽略鼠标事件，允许点击穿透
             popup.setIgnoreCursorEvents(true);
         });
-        popup.once('tauri://error', function(e) {
-            // an error happened creating the webview
-            console.error('创建 webview 时发生错误:', e);
-        });
+        // popup.once('tauri://error', function(e) {
+        //     // an error happened creating the webview
+        //     console.error('创建 webview 时发生错误:', e);
+        // });
     });
 }
 
@@ -1380,43 +1387,21 @@ async function loadData() {
     }
 }
 
-// 调用后端API的辅助函数
-async function callBackend(command, params = {}) {
-    try {
-        return await invoke(command, params);
-    } catch (error) {
-        console.error(`调用 ${command} 失败:`, error);
-        throw error;
-    }
-}
-
 // 设置自动刷新
 function setupAutoRefresh() {
-    // 每30秒更新一次KPM值
+    // 每5秒更新一次KPM值
     setInterval(async() => {
         try {
             const kpmValueElement = document.querySelector('.kpm-value');
-            if (!kpmValueElement) return;
-
-            // 如果当前不是"加载中..."状态，则显示刷新图标或其他指示
-            if (kpmValueElement.textContent !== '计算中...') {
-                const originalText = kpmValueElement.textContent;
-                kpmValueElement.innerHTML = `<span title="正在刷新KPM...">↻ ${originalText}</span>`;
-            }
+            if (!kpmValueElement || !isRecording) return;
 
             try {
                 // 尝试从后端获取统计数据，只更新KPM值
-                const stats = await invoke('get_key_stats', { timeRange: currentTimeFilter });
-                if (stats) {
+                const kpm = await invoke('get_current_kpm');
+                console.log("query kpm :", kpm);
+                if (kpm) {
                     // 更新实时KPM值
-                    kpmValueElement.textContent = stats.kpm.toFixed(1);
-
-                    // 同时更新统计卡片中的平均KPM和退格率
-                    const statValues = document.querySelectorAll('.stat-value');
-                    if (statValues.length >= 5) {
-                        statValues[2].textContent = stats.avg_kpm.toFixed(1);
-                        statValues[3].textContent = stats.backspace_ratio.toFixed(1) + '%';
-                    }
+                    kpmValueElement.textContent = Math.round(kpm);
                 }
             } catch (error) {
                 console.warn('自动刷新KPM失败:', error);
@@ -1424,5 +1409,5 @@ function setupAutoRefresh() {
         } catch (error) {
             console.error('自动刷新出错:', error);
         }
-    }, 5000); // 1秒
+    }, 5000); // 5秒
 }

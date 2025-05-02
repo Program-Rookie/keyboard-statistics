@@ -91,7 +91,7 @@ impl DataAnalyzer {
         Ok(count)
     }
 
-    fn calculate_current_kpm(&self) -> Result<f64, rusqlite::Error> {
+    pub fn calculate_current_kpm(&self) -> Result<f64, rusqlite::Error> {
         let now = Local::now();
         let one_minute_ago = now - Duration::seconds(60);
         
@@ -114,10 +114,6 @@ impl DataAnalyzer {
         }
         let total_presses = self.get_total_presses(start_time, end_time)?;
         Ok(total_presses as f64 / duration)
-    }
-
-    fn calculate_kpm(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) -> Result<f64, rusqlite::Error> {
-        self.calculate_current_kpm()
     }
 
     fn calculate_backspace_ratio(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) -> Result<f64, rusqlite::Error> {
@@ -222,7 +218,7 @@ impl DataAnalyzer {
     fn get_time_distribution(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) 
         -> Result<HashMap<String, u64>, rusqlite::Error> {
         let mut stmt = self.conn.prepare(
-            "SELECT strftime('%H', timestamp) as hour, COUNT(*) as count 
+            "SELECT strftime('%H', datetime(timestamp, 'localtime')) as hour, COUNT(*) as count 
              FROM keyboard_events 
              WHERE timestamp BETWEEN ?1 AND ?2 
              GROUP BY hour"
