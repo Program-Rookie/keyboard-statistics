@@ -2808,9 +2808,78 @@ async function exportData() {
         confirmExportBtn.textContent = originalText;
         confirmExportBtn.disabled = false;
 
-        // 显示成功消息
-        alert(`数据导出成功！\n文件已保存到: ${result}`);
+        // 创建成功消息对话框，包含可点击的文件路径链接
         hideModal('export-modal');
+
+        // 创建自定义成功对话框
+        const successModal = document.createElement('div');
+        successModal.id = 'export-success-modal';
+        successModal.className = 'modal';
+        successModal.style.display = 'flex';
+
+        successModal.innerHTML = `
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3>导出成功</h3>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>数据导出成功！</p>
+                    <p>文件已保存到：</p>
+                    <div style="margin: 15px 0; padding: 10px; background-color: #f8f9fa; border-radius: 4px; word-break: break-all;">
+                        <a href="#" id="export-file-path" style="color: var(--primary-color); text-decoration: underline;">${result}</a>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="open-export-folder" class="primary-btn">打开文件夹</button>
+                    <button id="close-success-modal" class="secondary-btn">关闭</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(successModal);
+
+        // 添加事件监听
+        const closeBtn = successModal.querySelector('.close-modal');
+        const closeModalBtn = document.getElementById('close-success-modal');
+        const openFolderBtn = document.getElementById('open-export-folder');
+        const filePathLink = document.getElementById('export-file-path');
+
+        // 关闭按钮事件
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(successModal);
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            document.body.removeChild(successModal);
+        });
+
+        // 打开文件夹事件
+        openFolderBtn.addEventListener('click', async() => {
+            try {
+                // 获取文件所在的文件夹路径
+                const folderPath = result.substring(0, result.lastIndexOf('\\'));
+                await invoke('open_folder', { path: folderPath });
+                document.body.removeChild(successModal);
+            } catch (error) {
+                console.error('打开文件夹失败:', error);
+                alert('无法打开文件夹，请确认应用权限');
+            }
+        });
+
+        // 文件路径链接点击事件
+        filePathLink.addEventListener('click', async(e) => {
+            e.preventDefault();
+            try {
+                // 获取文件所在的文件夹路径
+                const folderPath = result.substring(0, result.lastIndexOf('\\'));
+                await invoke('open_folder', { path: folderPath });
+                document.body.removeChild(successModal);
+            } catch (error) {
+                console.error('打开文件夹失败:', error);
+                alert('无法打开文件夹，请确认应用权限');
+            }
+        });
     } catch (error) {
         console.error('导出数据失败:', error);
         alert(`导出数据失败: ${error}`);

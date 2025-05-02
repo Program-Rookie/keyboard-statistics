@@ -233,8 +233,19 @@ pub fn export_data_as_json(
     start_time: DateTime<Local>, 
     end_time: DateTime<Local>
 ) -> Result<String> {
-    let events = query_events_by_time_range(conn, start_time, end_time)?;
-    let json = serde_json::to_string(&events)
+    let mut events = query_events_by_time_range(conn, start_time, end_time)?;
+    
+    // 使用serde_json::Value手动构建JSON以添加额外字段
+    let json_events: Vec<serde_json::Value> = events.iter().map(|event| {
+        let mut map = serde_json::Map::new();
+        map.insert("readable_time".to_string(), serde_json::Value::String(event.timestamp.format("%Y-%m-%d %H:%M:%S").to_string()));
+        map.insert("key_code".to_string(), serde_json::Value::String(event.key_code.clone()));
+        map.insert("app_name".to_string(), serde_json::Value::String(event.app_name.clone()));
+        map.insert("window_title".to_string(), serde_json::Value::String(event.window_title.clone()));
+        serde_json::Value::Object(map)
+    }).collect();
+    
+    let json = serde_json::to_string_pretty(&json_events)
         .map_err(|e| rusqlite::Error::InvalidQuery)?; // 简单转换错误类型
     Ok(json)
 }
@@ -247,11 +258,14 @@ pub fn export_data_as_csv(
 ) -> Result<String> {
     let events = query_events_by_time_range(conn, start_time, end_time)?;
     
-    let mut csv_content = String::from("timestamp,key_code,app_name,window_title\n");
+    let mut csv_content = String::from("readable_time,key_code,app_name,window_title\n");
     for event in events {
+        // 格式化时间戳为易读格式
+        let readable_time = event.timestamp.format("%Y-%m-%d %H:%M:%S").to_string();
+        
         // 简单处理CSV，实际项目中可能需要更复杂的转义处理
-        let line = format!("{},{},\"{}\",\"{}\"\n",
-            event.timestamp.to_rfc3339(),
+        let line = format!("{},\"{}\",\"{}\",\"{}\"\n",
+            readable_time,
             event.key_code.replace(',', "\\,"),
             event.app_name.replace('"', "\"\""),
             event.window_title.replace('"', "\"\"")
