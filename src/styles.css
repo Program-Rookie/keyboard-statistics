@@ -347,113 +347,216 @@ body {
 
 .health-form {
     background-color: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px var(--shadow-color);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 8px var(--shadow-color);
     margin-bottom: 30px;
+    transition: all 0.3s;
+}
+
+.health-form:hover {
+    box-shadow: 0 6px 12px var(--shadow-color);
 }
 
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     font-weight: 500;
+    color: var(--dark-color);
 }
 
 select,
 input {
     width: 100%;
-    padding: 10px;
+    padding: 12px 15px;
     border: 1px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 1rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    background-color: #fbfbfb;
+}
+
+select:hover,
+input:hover {
+    border-color: var(--primary-color);
+}
+
+select:focus,
+input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+    outline: none;
 }
 
 .primary-btn {
     background-color: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 4px;
+    padding: 12px 25px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
-    transition: background-color 0.3s;
+    font-weight: 500;
+    transition: all 0.3s;
+    box-shadow: 0 4px 6px rgba(74, 108, 247, 0.2);
 }
 
 .primary-btn:hover {
     background-color: #3a5bd9;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(74, 108, 247, 0.25);
 }
 
-.secondary-btn {
-    background-color: var(--light-color);
-    color: var(--dark-color);
-    border: 1px solid var(--border-color);
-    padding: 10px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: background-color 0.3s;
-}
-
-.secondary-btn:hover {
-    background-color: #e9ecef;
+.primary-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(74, 108, 247, 0.2);
 }
 
 .health-result {
     margin-bottom: 30px;
+    transition: all 0.5s;
 }
 
 .health-result.hidden {
     display: none;
+    opacity: 0;
 }
 
 .result-card {
     background-color: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px var(--shadow-color);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 8px var(--shadow-color);
+    transition: all 0.3s;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    font-size: 1.4rem;
 }
 
 .disclaimer {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--secondary-color);
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f0f0f0;
 }
 
 .risk-level {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
 }
 
 .risk-label {
     font-weight: 500;
+    font-size: 1.1rem;
+    margin-right: 10px;
 }
 
 .risk-value {
     font-weight: bold;
-    color: var(--success-color);
+    padding: 5px 12px;
+    border-radius: 20px;
+    color: white;
+    background-color: var(--success-color);
+}
+
+.risk-value.medium {
+    background-color: var(--warning-color);
+}
+
+.risk-value.high {
+    background-color: var(--danger-color);
 }
 
 .risk-description {
-    line-height: 1.5;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    color: #555;
 }
 
 .ai-analysis {
     background-color: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px var(--shadow-color);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 8px var(--shadow-color);
     text-align: center;
+    transition: all 0.3s;
+    margin-top: 20px;
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    border: 1px solid #e6ecff;
+}
+
+.ai-analysis:hover {
+    box-shadow: 0 6px 12px var(--shadow-color);
+    transform: translateY(-3px);
 }
 
 .ai-analysis h3 {
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    font-size: 1.4rem;
 }
 
 .ai-analysis p {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    color: #666;
+}
+
+.insights-section {
+    margin-top: 20px;
+}
+
+.insight-item {
+    background-color: #f8f9fa;
+    border-left: 4px solid var(--primary-color);
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+.recommendations-section {
+    margin-top: 20px;
+}
+
+.recommendation-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.recommendation-item:last-child {
+    border-bottom: none;
+}
+
+.recommendation-icon {
+    margin-right: 15px;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+}
+
+.recommendation-text {
+    flex: 1;
 }
 
 

@@ -468,57 +468,41 @@ async function toggleRecording() {
 
 // 执行健康评估
 function performHealthAssessment() {
-    // 检查所有需要的元素是否存在
-    const occupationElement = document.getElementById('occupation');
-    const dailyHoursElement = document.getElementById('daily-hours');
-    const keyboardTypeElement = document.getElementById('keyboard-type');
-    const hasBreaksElement = document.getElementById('has-breaks');
-    const hasWristSupportElement = document.getElementById('has-wrist-support');
+    const occupationSelect = document.getElementById('occupation');
+    const dailyHoursSelect = document.getElementById('daily-hours');
+    const hasBreaksCheckbox = document.getElementById('has-breaks');
+    const hasWristSupportCheckbox = document.getElementById('has-support');
 
-    // 如果元素不存在，给出友好提示并返回
-    if (!occupationElement || !dailyHoursElement) {
-        console.error('健康评估表单元素不存在');
-        alert('无法进行健康评估，表单元素不存在');
-        return;
-    }
+    const occupation = occupationSelect.value;
+    const dailyHours = dailyHoursSelect.value;
+    const hasBreaks = hasBreaksCheckbox ? hasBreaksCheckbox.checked : false;
+    const hasWristSupport = hasWristSupportCheckbox ? hasWristSupportCheckbox.checked : false;
 
-    const occupation = occupationElement.value;
-    const dailyHours = dailyHoursElement.value;
-    // 安全地获取其他元素的值，如果元素不存在则使用默认值
-    const keyboardType = keyboardTypeElement ? keyboardTypeElement.value || 'standard' : 'standard';
-    const hasBreaks = hasBreaksElement ? hasBreaksElement.checked : false;
-    const hasWristSupport = hasWristSupportElement ? hasWristSupportElement.checked : false;
-
+    // 表单验证
     if (!occupation || !dailyHours) {
-        alert('请填写完整的信息以进行评估');
+        alert('请填写所有必填项');
         return;
     }
 
-    // 获取当前统计数据用于更详细的评估
-    invoke('get_key_stats', { timeRange: 'all' }).then(stats => {
-        // 使用统计数据和用户输入进行更详细的健康评估
-        const result = calculateHealthRisk(stats, {
-            occupation,
-            dailyHours,
-            keyboardType,
-            hasBreaks,
-            hasWristSupport
-        });
+    // 获取用户输入的健康信息
+    const userInfo = {
+        occupation,
+        dailyHours,
+        keyboardType: 'standard', // 可以增加键盘类型选择
+        hasBreaks,
+        hasWristSupport
+    };
 
-        // 显示评估结果
-        displayHealthAssessment(result);
-    }).catch(error => {
-        console.error('获取统计数据失败:', error);
-
-        // 如果获取数据失败，仍使用基本数据进行评估
-        const result = {
-            riskLevel: getRiskLevel(occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport),
-            description: getHealthDescription(occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport),
-            recommendations: getHealthRecommendations(occupation, dailyHours)
-        };
+    // 调用获取最新统计数据的API
+    readyToSendMessage('get_latest_stats').then(stats => {
+        // 计算健康风险
+        const result = calculateHealthRisk(stats, userInfo);
 
         // 显示结果
         displayHealthAssessment(result);
+    }).catch(error => {
+        console.error('获取统计数据失败:', error);
+        alert('无法获取统计数据，请稍后再试');
     });
 }
 
@@ -532,6 +516,7 @@ function calculateHealthRisk(stats, userInfo) {
 
     // 添加基于统计数据的具体评估
     let insights = [];
+    let recommendations = [];
 
     // 获取用户的每日按键量
     const dailyKeyPresses = stats.total_presses / Math.max(stats.days_recorded, 1);
@@ -539,9 +524,11 @@ function calculateHealthRisk(stats, userInfo) {
     // 评估每日按键量
     if (dailyKeyPresses > 20000) {
         insights.push("您的每日按键量非常高，处于重度使用级别。");
+        recommendations.push("考虑使用快捷键和文本扩展工具减少按键次数。");
         if (riskLevel !== "高") riskLevel = "中高";
     } else if (dailyKeyPresses > 10000) {
         insights.push("您的每日按键量较高，处于中度使用级别。");
+        recommendations.push("保持良好姿势，每小时休息5-10分钟。");
     } else if (dailyKeyPresses > 5000) {
         insights.push("您的每日按键量适中，处于正常使用级别。");
     } else {
@@ -553,416 +540,105 @@ function calculateHealthRisk(stats, userInfo) {
         const modifierPercent = (stats.key_categories.modifier || 0) / stats.total_presses * 100;
         if (modifierPercent > 15) {
             insights.push("您使用修饰键(Shift, Ctrl等)的比例较高，可能增加手指疲劳风险。");
+            recommendations.push("尝试使用更简单的快捷键组合，避免频繁使用组合键。");
         }
     }
 
-    // 评估按键使用高峰期
-    if (stats.time_distribution) {
-        let peakHours = 0;
-        let continuousHours = 0;
-        let currentStreak = 0;
-
-        // 对象转换为数组并按小时排序
-        const hourData = Object.entries(stats.time_distribution)
-            .map(([hour, count]) => ({ hour: parseInt(hour), count }))
-            .sort((a, b) => a.hour - b.hour);
-
-        // 计算高峰期和连续使用时间
-        hourData.forEach(({ count }) => {
-            if (count > dailyKeyPresses / 24 * 1.5) {
-                peakHours++;
-                currentStreak++;
-                continuousHours = Math.max(continuousHours, currentStreak);
-            } else {
-                currentStreak = 0;
-            }
-        });
-
-        if (continuousHours >= 4) {
-            insights.push(`您的键盘使用存在长时间连续高强度使用(${continuousHours}小时)，建议增加休息频率。`);
-            if (riskLevel !== "高") riskLevel = "中高";
-        } else if (peakHours > 8) {
-            insights.push("您的键盘使用呈现出长时间高强度特征，建议适当调整工作节奏。");
-        }
+    // 评估退格使用情况
+    if (stats.backspace_ratio > 0.1) {
+        insights.push(`您的退格键使用率(${(stats.backspace_ratio * 100).toFixed(1)}%)较高，可能表示打字出错较多。`);
+        recommendations.push("放慢打字速度，提高准确性。考虑使用拼写检查工具。");
     }
 
-    // 生成个性化建议
-    const recommendations = getHealthRecommendations(occupation, dailyHours);
+    // 增加标准建议
+    if (!hasBreaks) {
+        recommendations.push("每使用电脑1小时，至少休息5-10分钟，站起来活动一下。");
+    }
 
-    // 如果有可用的统计信息，添加更多个性化建议
-    if (insights.length > 0) {
-        description = `基于您的实际使用数据和输入信息的评估：\n${description}`;
+    if (!hasWristSupport) {
+        recommendations.push("考虑使用腕托或人体工学键盘，减轻手腕压力。");
+    }
+
+    recommendations.push("保持正确坐姿，显示器高度与眼睛平齐，颈部挺直。");
+
+    if (dailyHours === "7-9" || dailyHours === "10+") {
+        recommendations.push("尝试20-20-20法则：每20分钟，看20英尺外的物体20秒，缓解眼睛疲劳。");
     }
 
     return {
         riskLevel,
         description,
         insights,
-        recommendations,
-        stats: {
-            dailyKeyPresses: Math.round(dailyKeyPresses),
-            totalPresses: stats.total_presses,
-            daysRecorded: stats.days_recorded || 1
-        }
+        recommendations
     };
 }
 
 // 显示健康评估结果
 function displayHealthAssessment(result) {
-    const resultContainer = document.querySelector('.health-result');
-    resultContainer.classList.remove('hidden');
+    const healthResultContainer = document.querySelector('.health-result');
+    const riskValue = healthResultContainer.querySelector('.risk-value');
+    const riskDescription = healthResultContainer.querySelector('.risk-description');
+    const insightsList = document.getElementById('insights-list');
+    const recommendationsList = document.getElementById('recommendations-list');
 
-    // 显示风险等级
-    const riskValue = document.querySelector('.risk-value');
+    // 清空之前的洞察和建议
+    insightsList.innerHTML = '';
+    recommendationsList.innerHTML = '';
+
+    // 设置风险等级和颜色
     riskValue.textContent = result.riskLevel;
-    riskValue.style.color = getRiskColor(result.riskLevel);
+    riskValue.className = 'risk-value'; // 重置类名
 
-    // 显示风险描述
-    const riskDescription = document.querySelector('.risk-description');
+    // 根据风险等级添加相应的类名
+    if (result.riskLevel === '中') {
+        riskValue.classList.add('medium');
+    } else if (result.riskLevel === '高') {
+        riskValue.classList.add('high');
+    }
+
+    // 设置风险描述
     riskDescription.textContent = result.description;
 
-    // 显示使用洞察
+    // 添加洞察
     if (result.insights && result.insights.length > 0) {
-        const insightsContainer = document.querySelector('.health-insights') ||
-            createInsightsSection(resultContainer);
-
-        insightsContainer.innerHTML = '<h4>使用洞察</h4>';
-        const insightsList = document.createElement('ul');
-        insightsList.className = 'insights-list';
-
         result.insights.forEach(insight => {
-            const insightItem = document.createElement('li');
+            const insightItem = document.createElement('div');
+            insightItem.className = 'insight-item';
             insightItem.textContent = insight;
             insightsList.appendChild(insightItem);
         });
-
-        insightsContainer.appendChild(insightsList);
+    } else {
+        // 如果没有洞察，隐藏整个洞察部分
+        document.querySelector('.insights-section').style.display = 'none';
     }
 
-    // 显示健康建议
+    // 添加建议
     if (result.recommendations && result.recommendations.length > 0) {
-        const recommendationsContainer = document.querySelector('.health-recommendations') ||
-            createRecommendationsSection(resultContainer);
-
-        recommendationsContainer.innerHTML = '<h4>健康建议</h4>';
-        const recommendationsList = document.createElement('ul');
-        recommendationsList.className = 'recommendations-list';
-
         result.recommendations.forEach(recommendation => {
-            const recommendationItem = document.createElement('li');
-            recommendationItem.textContent = recommendation;
+            const recommendationItem = document.createElement('div');
+            recommendationItem.className = 'recommendation-item';
+
+            const icon = document.createElement('span');
+            icon.className = 'recommendation-icon';
+            icon.innerHTML = '✓';
+
+            const text = document.createElement('div');
+            text.className = 'recommendation-text';
+            text.textContent = recommendation;
+
+            recommendationItem.appendChild(icon);
+            recommendationItem.appendChild(text);
             recommendationsList.appendChild(recommendationItem);
         });
-
-        recommendationsContainer.appendChild(recommendationsList);
     }
 
-    // 显示使用统计
-    if (result.stats) {
-        const statsContainer = document.querySelector('.health-stats') ||
-            createStatsSection(resultContainer);
+    // 显示结果
+    healthResultContainer.classList.remove('hidden');
 
-        statsContainer.innerHTML = '<h4>使用统计</h4>';
-
-        const statsList = document.createElement('ul');
-        statsList.className = 'stats-list';
-
-        const statsItems = [
-            `每日平均按键次数: ${result.stats.dailyKeyPresses.toLocaleString()}`,
-            `总按键次数: ${result.stats.totalPresses.toLocaleString()}`,
-            `记录天数: ${result.stats.daysRecorded}`
-        ];
-
-        statsItems.forEach(stat => {
-            const statItem = document.createElement('li');
-            statItem.textContent = stat;
-            statsList.appendChild(statItem);
-        });
-
-        statsContainer.appendChild(statsList);
-    }
-}
-
-// 创建洞察部分
-function createInsightsSection(container) {
-    const section = document.createElement('div');
-    section.className = 'health-insights';
-    container.appendChild(section);
-    return section;
-}
-
-// 创建建议部分
-function createRecommendationsSection(container) {
-    const section = document.createElement('div');
-    section.className = 'health-recommendations';
-    container.appendChild(section);
-    return section;
-}
-
-// 创建统计部分
-function createStatsSection(container) {
-    const section = document.createElement('div');
-    section.className = 'health-stats';
-    container.appendChild(section);
-    return section;
-}
-
-// 获取风险等级
-function getRiskLevel(occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport) {
-    // 基础风险评分
-    let riskScore = 0;
-
-    // 根据职业评分
-    if (occupation === 'programmer' || occupation === 'writer' || occupation === 'data') {
-        riskScore += 3; // 高风险职业
-    } else if (occupation === 'designer' || occupation === 'student') {
-        riskScore += 2; // 中风险职业
-    } else {
-        riskScore += 1; // 低风险职业
-    }
-
-    // 根据日使用时间评分
-    if (dailyHours === '10+') {
-        riskScore += 4; // 高强度使用
-    } else if (dailyHours === '7-9') {
-        riskScore += 3; // 中高强度使用
-    } else if (dailyHours === '4-6') {
-        riskScore += 2; // 中等强度使用
-    } else {
-        riskScore += 1; // 低强度使用
-    }
-
-    // 根据键盘类型评分
-    if (keyboardType === 'mechanical') {
-        riskScore -= 1; // 机械键盘通常更符合人体工学
-    } else if (keyboardType === 'ergonomic') {
-        riskScore -= 2; // 人体工学键盘降低风险
-    }
-
-    // 根据是否定期休息评分
-    if (hasBreaks) {
-        riskScore -= 2; // 定期休息降低风险
-    }
-
-    // 根据是否使用腕托评分
-    if (hasWristSupport) {
-        riskScore -= 1; // 使用腕托降低风险
-    }
-
-    // 根据总评分确定风险等级
-    if (riskScore >= 6) {
-        return "高";
-    } else if (riskScore >= 4) {
-        return "中高";
-    } else if (riskScore >= 2) {
-        return "中";
-    } else {
-        return "低";
-    }
-}
-
-// 获取健康描述
-function getHealthDescription(occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport) {
-    const riskLevel = getRiskLevel(occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport);
-
-    let description = "";
-
-    // 基于风险等级的描述
-    if (riskLevel === "高") {
-        description = "您的键盘使用强度很高，存在较高的RSI(重复性劳损)风险。";
-    } else if (riskLevel === "中高") {
-        description = "您的键盘使用处于中高强度，存在一定的RSI风险。";
-    } else if (riskLevel === "中") {
-        description = "您的键盘使用处于中等强度，RSI风险适中。";
-    } else {
-        description = "您的键盘使用强度较低，RSI风险较小。";
-    }
-
-    // 添加职业和使用时间相关描述
-    description += `作为一名${getOccupationName(occupation)}，每日键盘使用${getDailyHoursDescription(dailyHours)}，`;
-
-    // 添加健康习惯描述
-    if (hasBreaks && hasWristSupport) {
-        description += "您有定期休息和使用腕托的良好习惯，这有助于降低RSI风险。";
-    } else if (hasBreaks) {
-        description += "您有定期休息的好习惯，建议考虑使用腕托以进一步降低风险。";
-    } else if (hasWristSupport) {
-        description += "您使用腕托是个好习惯，建议同时增加定期休息以更好地保护手腕。";
-    } else {
-        description += "建议养成定期休息和使用腕托的习惯，以降低RSI风险。";
-    }
-
-    return description;
-}
-
-// 获取健康建议
-function getHealthRecommendations(occupation, dailyHours) {
-    const recommendations = [
-        "每使用键盘1小时，至少休息5-10分钟，进行手腕伸展运动",
-        "保持正确的坐姿和手腕姿势，手腕应保持自然直线，不要过度弯曲",
-        "考虑使用符合人体工学的键盘和鼠标，减少腕部压力"
-    ];
-
-    // 根据职业添加建议
-    if (occupation === 'programmer' || occupation === 'writer') {
-        recommendations.push("尝试使用快捷键和代码片段工具，减少重复性按键");
-        recommendations.push("考虑使用文本扩展工具，通过短代码展开为常用文本");
-    }
-
-    // 根据使用时间添加建议
-    if (dailyHours === '10+' || dailyHours === '7-9') {
-        recommendations.push("严格执行番茄工作法(25分钟工作，5分钟休息)");
-        recommendations.push("定期进行手腕和手指的强化锻炼，增强肌肉耐力");
-        recommendations.push("考虑使用语音输入等替代输入方式，减少键盘使用时间");
-    }
-
-    return recommendations;
-}
-
-// 获取职业名称
-function getOccupationName(occupation) {
-    const occupationMap = {
-        'programmer': '程序员',
-        'writer': '作家/文字工作者',
-        'data': '数据分析师',
-        'designer': '设计师',
-        'student': '学生',
-        'office': '办公室工作人员',
-        'other': '其他职业人士'
-    };
-
-    return occupationMap[occupation] || occupation;
-}
-
-// 获取使用时间描述
-function getDailyHoursDescription(dailyHours) {
-    const hoursMap = {
-        '10+': '超过10小时',
-        '7-9': '7-9小时',
-        '4-6': '4-6小时',
-        '1-3': '1-3小时',
-        '<1': '不到1小时'
-    };
-
-    return hoursMap[dailyHours] || dailyHours;
-}
-
-// 获取风险颜色
-function getRiskColor(riskLevel) {
-    switch (riskLevel) {
-        case '高':
-            return '#dc3545'; // 红色
-        case '中高':
-            return '#fd7e14'; // 橙色
-        case '中':
-            return '#ffc107'; // 黄色
-        case '低':
-            return '#28a745'; // 绿色
-        default:
-            return '#28a745';
-    }
-}
-
-// 导出数据
-async function exportData() {
-    const format = document.getElementById('export-format').value;
-    const range = document.getElementById('export-range').value;
-    const type = document.getElementById('export-type').value;
-
-    try {
-        // 显示加载中状态
-        const confirmExportBtn = document.getElementById('confirm-export');
-        const originalText = confirmExportBtn.textContent;
-        confirmExportBtn.textContent = '导出中...';
-        confirmExportBtn.disabled = true;
-
-        // 调用后端API导出数据
-        const result = await invoke('export_data', { format, range, typeStr: type });
-
-        // 恢复按钮状态
-        confirmExportBtn.textContent = originalText;
-        confirmExportBtn.disabled = false;
-
-        // 显示成功消息
-        alert(`数据导出成功！\n文件已保存到: ${result}`);
-        hideModal('export-modal');
-    } catch (error) {
-        console.error('导出数据失败:', error);
-        alert(`导出数据失败: ${error}`);
-
-        // 恢复按钮状态
-        const confirmExportBtn = document.getElementById('confirm-export');
-        if (confirmExportBtn) {
-            confirmExportBtn.textContent = '导出';
-            confirmExportBtn.disabled = false;
-        }
-    }
-}
-
-// 删除数据
-async function deleteData() {
-    const range = document.getElementById('delete-range').value;
-    const isConfirmed = document.getElementById('confirm-delete-checkbox').checked;
-
-    if (!isConfirmed) {
-        alert('请确认您了解此操作不可撤销');
-        return;
-    }
-
-    try {
-        // 显示加载中状态
-        const confirmDeleteBtn = document.getElementById('confirm-delete');
-        const originalText = confirmDeleteBtn.textContent;
-        confirmDeleteBtn.textContent = '删除中...';
-        confirmDeleteBtn.disabled = true;
-
-        // 调用后端API删除数据
-        const result = await invoke('delete_data', { range });
-
-        // 恢复按钮状态
-        confirmDeleteBtn.textContent = originalText;
-        confirmDeleteBtn.disabled = true; // 保持禁用状态，直到用户再次勾选确认框
-
-        // 显示成功消息
-        alert(result);
-        hideModal('delete-modal');
-
-        // 重置确认复选框
-        document.getElementById('confirm-delete-checkbox').checked = false;
-
-        // 更新数据显示
-        loadData();
-    } catch (error) {
-        console.error('删除数据失败:', error);
-        alert(`删除数据失败: ${error}`);
-
-        // 恢复按钮状态
-        const confirmDeleteBtn = document.getElementById('confirm-delete');
-        if (confirmDeleteBtn) {
-            confirmDeleteBtn.textContent = '删除';
-            confirmDeleteBtn.disabled = false;
-        }
-    }
-}
-
-// 清除所有数据
-async function clearAllData() {
-    // 再次确认
-    if (!confirm('确定要清除所有数据吗？此操作不可撤销。')) {
-        return;
-    }
-
-    try {
-        // 调用后端API清除所有数据
-        const result = await invoke('clear_all_data');
-        alert(result);
-
-        // 更新数据显示
-        loadData();
-    } catch (error) {
-        console.error('清除数据失败:', error);
-        alert(`清除数据失败: ${error}`);
-    }
+    // 平滑滚动到结果
+    setTimeout(() => {
+        healthResultContainer.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
 }
 
 // 切换主题
@@ -1156,8 +832,8 @@ function updateCharts(stats) {
         // 常用按键图表
         updateTopKeysChart(stats);
 
-        // 应用使用统计 - 注释掉，因为函数已被移除
-        // updateAppKeysChart(stats);
+        // 应用使用统计 - 恢复应用按键数量排行图表的更新
+        updateAppKeysChart(stats);
 
         // 时间分布图表
         updateTimeDistributionChart(stats);
@@ -1366,20 +1042,22 @@ function updateAppTimeChart(stats) {
     let appTimeData = [];
     let hasValidData = false;
 
-    // 从应用使用数据中提取时间分布信息
-    // 注意：这里假设后端提供了app_time_distribution字段，包含每个应用在一天中各个时段的使用量
-    if (stats.app_time_distribution && Object.keys(stats.app_time_distribution).length > 0) {
-        // 处理后端提供的数据
+    // 从后端的app_time_distribution获取数据
+    if (stats.app_time_distribution && stats.app_time_distribution.length > 0) {
+        // 使用后端直接提供的数据
         appTimeData = stats.app_time_distribution;
         hasValidData = true;
-    } else if (stats.app_usage && Object.keys(stats.app_usage).length > 0) {
-        // 如果没有时间分布数据，则使用应用使用量数据创建模拟的时间分布
+    }
+    // 如果后端没有提供时间分布数据，则使用应用使用量数据创建模拟的时间分布
+    else if (stats.app_usage && Object.keys(stats.app_usage).length > 0) {
         // 获取前5个最常用的应用
         const topApps = Object.entries(stats.app_usage)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5);
 
         if (topApps.length > 0) {
+            console.log('使用应用使用量数据创建模拟的时间分布', topApps);
+
             // 创建每个应用在24小时内的分布数据
             appTimeData = topApps.map(([app, count]) => {
                 // 为每个应用创建24小时的分布数据
@@ -1403,35 +1081,19 @@ function updateAppTimeChart(stats) {
         }
     }
 
-    // 如果没有数据，使用模拟数据
+    // 如果没有数据，显示提示信息
     if (!hasValidData) {
-        // 模拟数据 - 生成5个最常用应用的时间分布
-        const mockApps = [
-            "Chrome", "VS Code", "Word", "Excel", "微信"
-        ];
-
-        appTimeData = mockApps.map(app => {
-            // 生成随机时间分布，但符合工作时间使用量高的规律
-            const hourData = Array.from({ length: 24 }, (_, hour) => {
-                // 工作时间(9-18)使用量更高
-                const isWorkHour = hour >= 9 && hour <= 18;
-                // 为每个应用设置不同的基础值，以区分应用使用量
-                const baseValue = mockApps.indexOf(app) === 0 ? 100 :
-                    mockApps.indexOf(app) === 1 ? 80 :
-                    mockApps.indexOf(app) === 2 ? 60 :
-                    mockApps.indexOf(app) === 3 ? 40 : 20;
-
-                const multiplier = isWorkHour ? 1.5 : 0.5;
-                // 添加一些随机波动
-                const randomFactor = 0.8 + Math.random() * 0.4; // 0.8-1.2
-                return Math.round(baseValue * multiplier * randomFactor);
-            });
-
-            return {
-                label: app,
-                data: hourData
-            };
-        });
+        const noDataMessage = document.createElement('div');
+        noDataMessage.className = 'no-data-message';
+        noDataMessage.textContent = '暂无应用使用时间分布数据';
+        noDataMessage.style.display = 'flex';
+        noDataMessage.style.justifyContent = 'center';
+        noDataMessage.style.alignItems = 'center';
+        noDataMessage.style.height = '100%';
+        noDataMessage.style.fontSize = '18px';
+        noDataMessage.style.color = '#aaa';
+        chartElement.appendChild(noDataMessage);
+        return;
     }
 
     // 生成小时标签
@@ -1459,6 +1121,8 @@ function updateAppTimeChart(stats) {
         categoryPercentage: 0.7,
         barPercentage: 0.8
     }));
+
+    console.log('应用时间分布数据集:', datasets);
 
     // 创建图表
     new Chart(canvas, {
@@ -1633,36 +1297,25 @@ function updateActivityHeatmap(stats) {
     heatmapWrapper.style.height = '100%';
     chartElement.appendChild(heatmapWrapper);
 
-    // 添加标题
-    const titleDiv = document.createElement('div');
-    titleDiv.className = 'heatmap-title';
-    titleDiv.style.textAlign = 'center';
-    titleDiv.style.marginBottom = '10px';
-
-    // 根据热力图类型设置标题和显示样式
+    // 根据热力图类型设置显示样式
     switch (parseInt(heatmapType)) {
         case 1: // 今日热力图（按小时）
-            titleDiv.textContent = '今日活动热力图（按小时）';
             createTodayHeatmap(heatmapWrapper, heatmapData);
             break;
         case 2: // 周热力图（按星期和小时）
-            titleDiv.textContent = '本周活动热力图（按星期和小时）';
             createWeekHeatmap(heatmapWrapper, heatmapData);
             break;
         case 3: // 月热力图（按日期和小时）
-            titleDiv.textContent = '本月活动热力图（按日期和小时）';
             createMonthHeatmap(heatmapWrapper, heatmapData);
             break;
         case 4: // 全部时间热力图（按星期和小时）
-            titleDiv.textContent = '所有时间活动热力图（按星期和小时）';
             createAllTimeHeatmap(heatmapWrapper, heatmapData);
             break;
         default:
-            titleDiv.textContent = '活动热力图';
             createWeekHeatmap(heatmapWrapper, heatmapData); // 默认使用周热力图样式
     }
 
-    heatmapWrapper.insertBefore(titleDiv, heatmapWrapper.firstChild);
+    heatmapWrapper.insertBefore(heatmapWrapper.firstChild);
 }
 
 // 创建今日热力图（按小时）
@@ -1725,8 +1378,6 @@ function createTodayHeatmap(container, heatmapData) {
         heatBar.appendChild(cell);
     }
 
-    // 添加图例
-    addHeatmapLegend(container);
 }
 
 // 创建周热力图（按星期和小时）
@@ -1828,9 +1479,6 @@ function createWeekHeatmap(container, heatmapData) {
             dayRow.appendChild(cell);
         }
     }
-
-    // 添加图例
-    addHeatmapLegend(container);
 }
 
 // 创建月热力图（按日期和小时分布）
@@ -1973,9 +1621,6 @@ function createMonthHeatmap(container, heatmapData) {
             hourRow.appendChild(cell);
         }
     }
-
-    // 添加图例
-    addHeatmapLegend(container);
 }
 
 // 创建所有时间热力图（按星期和小时的汇总）
@@ -2077,41 +1722,6 @@ function createAllTimeHeatmap(container, heatmapData) {
             dayRow.appendChild(cell);
         }
     }
-
-    // 添加图例
-    addHeatmapLegend(container);
-}
-
-// 添加热力图图例
-function addHeatmapLegend(container) {
-    const legendContainer = document.createElement('div');
-    legendContainer.className = 'heatmap-legend';
-    legendContainer.style.display = 'flex';
-    legendContainer.style.justifyContent = 'center';
-    legendContainer.style.alignItems = 'center';
-    legendContainer.style.marginTop = '15px';
-    legendContainer.style.fontSize = '11px';
-    container.appendChild(legendContainer);
-
-    const lowLabel = document.createElement('span');
-    lowLabel.textContent = '低';
-    legendContainer.appendChild(lowLabel);
-
-    // 创建渐变图例
-    for (let i = 1; i <= 5; i++) {
-        const intensity = i * 0.15;
-        const legendItem = document.createElement('div');
-        legendItem.style.width = '20px';
-        legendItem.style.height = '10px';
-        legendItem.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
-        legendItem.style.margin = '0 2px';
-        legendItem.style.borderRadius = '2px';
-        legendContainer.appendChild(legendItem);
-    }
-
-    const highLabel = document.createElement('span');
-    highLabel.textContent = '高';
-    legendContainer.appendChild(highLabel);
 }
 
 // 初始化信息图标提示框
@@ -2365,35 +1975,18 @@ function updateKeyComboChart(stats) {
     const canvas = document.createElement('canvas');
     chartElement.appendChild(canvas);
 
-    // 由于后端可能没有提供组合键数据，这里使用模拟数据进行展示
-    // 在实际项目中，应该从stats中获取组合键数据
+    // 从后端获取组合键数据
     let keyCombos = [];
+    let hasData = false;
 
     // 尝试从stats中获取组合键数据
     if (stats.key_combos && stats.key_combos.length > 0) {
         keyCombos = stats.key_combos;
-    } else {
-        // 使用模拟数据进行展示
-        keyCombos = [
-            { combo: "Ctrl+C", count: 120 },
-            { combo: "Ctrl+V", count: 115 },
-            { combo: "Ctrl+Z", count: 87 },
-            { combo: "Alt+Tab", count: 76 },
-            { combo: "Ctrl+X", count: 65 },
-            { combo: "Ctrl+A", count: 54 },
-            { combo: "Ctrl+S", count: 49 },
-            { combo: "Win+E", count: 34 },
-            { combo: "Ctrl+F", count: 28 },
-            { combo: "Alt+F4", count: 19 }
-        ];
+        hasData = true;
     }
 
-    // 准备图表数据
-    const labels = keyCombos.map(item => item.combo);
-    const data = keyCombos.map(item => item.count);
-
     // 如果没有数据，显示提示信息
-    if (labels.length === 0) {
+    if (!hasData || keyCombos.length === 0) {
         const noDataMessage = document.createElement('div');
         noDataMessage.className = 'no-data-message';
         noDataMessage.textContent = '暂无组合键数据';
@@ -2406,6 +1999,10 @@ function updateKeyComboChart(stats) {
         chartElement.appendChild(noDataMessage);
         return;
     }
+
+    // 准备图表数据
+    const labels = keyCombos.map(item => item.combo);
+    const data = keyCombos.map(item => item.count);
 
     // 多彩的配色方案
     const colors = [
@@ -2530,25 +2127,30 @@ function updateDailyActivityChart(stats) {
     let activeDaysCount = 0;
     let activeDays = [];
 
+    // 获取当前日期信息
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const currentDate = today.getDate();
+
     // 尝试从活动热力图中提取日期数据
     if (stats.activity_heatmap && Object.keys(stats.activity_heatmap).length > 0) {
         const heatmapData = stats.activity_heatmap;
-        // 当前日期
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
-        const currentDate = today.getDate();
 
-        // 处理热力图数据，累加每日的按键数量
         try {
             // 创建一个映射来存储每一天的总键击数
             const dayTotals = {};
 
+            // 遍历热力图数据，累加每日的按键数量
             Object.entries(heatmapData).forEach(([key, value]) => {
+                // 跳过type键
+                if (key === 'type') return;
+
                 // 检查是否是日期+小时的键值（如"d01_h12"表示1日12时）
                 const match = key.match(/^d(\d{2})_h\d{2}$/);
                 if (match) {
                     const day = parseInt(match[1]); // 获取日期部分
+                    if (isNaN(day)) return;
 
                     // 初始化当天的计数器
                     if (!dayTotals[day]) {
@@ -2560,9 +2162,12 @@ function updateDailyActivityChart(stats) {
                 }
             });
 
+            console.log('每日总数据:', dayTotals);
+
             // 处理每天的总数据
             Object.entries(dayTotals).forEach(([day, total]) => {
                 const dayNum = parseInt(day);
+                if (isNaN(dayNum)) return;
 
                 // 创建日期对象（假设当前月份）
                 let keyDate = new Date(currentYear, currentMonth, dayNum);
@@ -2577,16 +2182,20 @@ function updateDailyActivityChart(stats) {
 
                 // 只处理过去30天内的数据
                 if (dayDiff >= 0 && dayDiff < 30) {
-                    dailyData[29 - dayDiff] = total;
+                    const index = 29 - dayDiff;
+                    dailyData[index] = total;
                     hasValidData = true;
                     activeDaysCount++;
-                    activeDays.push(29 - dayDiff); // 记录有活动的日期索引
+                    activeDays.push(index); // 记录有活动的日期索引
                 }
             });
         } catch (error) {
             console.error('处理热力图数据时出错:', error);
         }
     }
+
+    console.log('每日活动数据:', dailyData);
+    console.log('活跃天数:', activeDaysCount, '活跃日期索引:', activeDays);
 
     // 添加说明文本，如果刚开始使用
     if (hasValidData && activeDaysCount <= 3) {
@@ -2600,46 +2209,22 @@ function updateDailyActivityChart(stats) {
         chartElement.appendChild(explanationDiv);
     }
 
-    // 如果仍然没有有效数据，调整模拟数据以反映实际使用情况
+    // 如果没有有效数据，显示提示信息
     if (!hasValidData) {
-        // 当前日期
-        const today = new Date();
-
-        // 生成更合理的模拟数据，只显示最近1-3天的活动
-        const daysToShow = Math.floor(Math.random() * 2) + 1; // 1-2天
-
-        // 所有数据默认为0
-        dailyData = new Array(30).fill(0);
-
-        // 只设置最近的几天有数据
-        for (let i = 0; i < daysToShow; i++) {
-            const day = 29 - i; // 从最近的日期开始
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            const dayOfWeek = date.getDay(); // 0 = 周日, 6 = 周六
-
-            // 工作日和周末使用量不同
-            const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-            const baseValue = isWeekend ?
-                Math.floor(Math.random() * 400) + 100 : // 周末
-                Math.floor(Math.random() * 800) + 300; // 工作日
-
-            dailyData[day] = baseValue;
-            activeDays.push(day);
-        }
-
-        // 添加说明文本
-        const explanationDiv = document.createElement('div');
-        explanationDiv.className = 'chart-explanation';
-        explanationDiv.textContent = '基于最近几天的使用情况生成的数据预览。随着使用时间增加，图表将展示真实的使用趋势。';
-        explanationDiv.style.padding = '10px';
-        explanationDiv.style.fontSize = '12px';
-        explanationDiv.style.color = '#666';
-        explanationDiv.style.textAlign = 'center';
-        chartElement.appendChild(explanationDiv);
+        const noDataMessage = document.createElement('div');
+        noDataMessage.className = 'no-data-message';
+        noDataMessage.textContent = '暂无历史使用数据';
+        noDataMessage.style.display = 'flex';
+        noDataMessage.style.justifyContent = 'center';
+        noDataMessage.style.alignItems = 'center';
+        noDataMessage.style.height = '100%';
+        noDataMessage.style.fontSize = '18px';
+        noDataMessage.style.color = '#aaa';
+        chartElement.appendChild(noDataMessage);
+        return;
     }
 
-    // 创建渐变背景
+    // 创建渐变颜色
     const getGradient = (ctx) => {
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
         gradient.addColorStop(0, 'rgba(75, 192, 192, 0.6)');
@@ -2647,34 +2232,37 @@ function updateDailyActivityChart(stats) {
         return gradient;
     };
 
-    // 自定义点大小函数 - 活跃日期的点更大
+    // 动态点大小
     const customPointRadius = (context) => {
         const index = context.dataIndex;
-        // 如果是有数据的日期，使用更大的点
-        return activeDays.includes(index) ? 5 : 0;
+        // 检查该日期是否有活动
+        if (dailyData[index] === 0) {
+            return 0; // 没有活动的日期不显示点
+        }
+        return activeDays.includes(index) ? 4 : 0; // 只在有活动的日期显示点
     };
 
-    // 创建图表 - 使用曲线图和渐变填充
+    // 创建图表
     new Chart(canvas, {
         type: 'line',
         data: {
             labels: dates,
             datasets: [{
-                label: '按键数量',
+                label: '日活动量',
                 data: dailyData,
+                borderColor: 'rgba(75, 192, 192, 1)',
                 backgroundColor: function(context) {
                     const chart = context.chart;
                     const { ctx, chartArea } = chart;
                     if (!chartArea) return null;
                     return getGradient(ctx);
                 },
-                borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 2,
                 pointRadius: customPointRadius,
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: 'rgba(75, 192, 192, 1)',
                 pointBorderWidth: 1.5,
-                tension: 0.3, // 平滑曲线
+                tension: 0.4, // 平滑曲线
                 fill: true
             }]
         },
@@ -2683,7 +2271,7 @@ function updateDailyActivityChart(stats) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: false
+                    display: false,
                 },
                 tooltip: {
                     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -2699,16 +2287,9 @@ function updateDailyActivityChart(stats) {
                         },
                         label: function(context) {
                             if (context.raw === 0) {
-                                return '无使用记录';
+                                return '无活动记录';
                             }
                             return `按键数量: ${context.raw.toLocaleString()}`;
-                        },
-                        afterLabel: function(context) {
-                            // 判断是否是今天
-                            if (context.dataIndex === 29) {
-                                return '(今天)';
-                            }
-                            return '';
                         }
                     }
                 }
@@ -2730,29 +2311,9 @@ function updateDailyActivityChart(stats) {
                         display: false
                     },
                     ticks: {
-                        maxTicksLimit: 7, // 显示更少的刻度，避免拥挤
+                        maxTicksLimit: 10,
                         font: {
                             size: 10
-                        },
-                        callback: function(value, index) {
-                            // 标记今天的日期
-                            const label = dates[index];
-                            if (index === 29) {
-                                return `${label} (今)`;
-                            }
-                            // 标记有活动数据的日期
-                            if (activeDays.includes(index)) {
-                                return label;
-                            }
-                            // 对无数据的日期，考虑少显示一些刻度
-                            if (activeDaysCount <= 3) {
-                                // 当活跃天数少时，主要显示活跃日和几个关键日期
-                                if (index === 0 || index % 7 === 0) {
-                                    return label;
-                                }
-                                return '';
-                            }
-                            return label;
                         }
                     }
                 }
@@ -2786,102 +2347,92 @@ function updateWeeklyDistributionChart(stats) {
     const daysUsed = []; // 记录有使用数据的天
 
     // 创建一个新的数组来保存真实使用的天数
-    let realWeeklyData = new Array(7).fill(0);
+    let weeklyData = new Array(7).fill(0);
     let recentUsageDays = 0;
 
     // 从活动热力图数据中提取周分布数据
     if (stats.activity_heatmap && Object.keys(stats.activity_heatmap).length > 0) {
         const heatmapData = stats.activity_heatmap;
 
-        // 累计每天的按键数据
-        try {
-            // 提取近7天的数据
-            for (let i = 0; i < 7; i++) {
-                // 计算过去i天的日期
-                const pastDate = new Date(today);
-                pastDate.setDate(today.getDate() - i);
-                const pastDay = pastDate.getDate(); // 日期
-                const pastMonth = pastDate.getMonth() + 1; // 月份(0-11)+1
+        // 获取热力图类型，2或4表示是按星期的热力图数据
+        const heatmapType = heatmapData.type ? parseInt(heatmapData.type) : 0;
 
-                // 检查这一天是否有数据
-                let dayTotal = 0;
+        if (heatmapType === 2 || heatmapType === 4) {
+            // 直接从按星期分组的热力图数据中提取
+            try {
+                // 遍历热力图数据
+                Object.entries(heatmapData).forEach(([key, value]) => {
+                    if (key === 'type') return; // 跳过类型字段
 
-                // 统计当天所有小时的数据
-                for (let hour = 0; hour < 24; hour++) {
-                    // 格式化成 d01_h12 形式的键
-                    const dayKey = `d${String(pastDay).padStart(2, '0')}`;
-                    const hourKey = `h${String(hour).padStart(2, '0')}`;
-                    const key = `${dayKey}_${hourKey}`;
-
-                    if (heatmapData[key]) {
-                        dayTotal += heatmapData[key];
+                    // 匹配形如 d0_h12 的键（周日12时）
+                    const match = key.match(/^d([0-6])_h\d{2}$/);
+                    if (match) {
+                        const dayOfWeek = parseInt(match[1]); // 获取星期几(0-6)
+                        if (!isNaN(dayOfWeek) && dayOfWeek >= 0 && dayOfWeek <= 6) {
+                            weeklyData[dayOfWeek] += value;
+                            if (!daysUsed.includes(dayOfWeek)) {
+                                daysUsed.push(dayOfWeek);
+                                recentUsageDays++;
+                            }
+                            hasRealData = true;
+                        }
                     }
-                }
-
-                if (dayTotal > 0) {
-                    // 这一天有数据
-                    const weekDay = pastDate.getDay(); // 获取星期几(0-6)
-                    realWeeklyData[weekDay] += dayTotal;
-                    if (!daysUsed.includes(weekDay)) {
-                        daysUsed.push(weekDay);
-                        recentUsageDays++;
-                    }
-                    hasRealData = true;
-                }
+                });
+            } catch (error) {
+                console.error('处理按星期热力图数据时出错:', error);
             }
-        } catch (error) {
-            console.error('处理周分布数据时出错:', error);
+        } else {
+            // 累计每天的按键数据
+            try {
+                // 提取近7天的数据
+                for (let i = 0; i < 7; i++) {
+                    // 计算过去i天的日期
+                    const pastDate = new Date(today);
+                    pastDate.setDate(today.getDate() - i);
+                    const pastDay = pastDate.getDate(); // 日期
+                    const pastMonth = pastDate.getMonth() + 1; // 月份(0-11)+1
+
+                    // 检查这一天是否有数据
+                    let dayTotal = 0;
+
+                    // 统计当天所有小时的数据
+                    for (let hour = 0; hour < 24; hour++) {
+                        // 格式化成 d01_h12 形式的键
+                        const dayKey = `d${String(pastDay).padStart(2, '0')}`;
+                        const hourKey = `h${String(hour).padStart(2, '0')}`;
+                        const key = `${dayKey}_${hourKey}`;
+
+                        if (heatmapData[key]) {
+                            dayTotal += heatmapData[key];
+                        }
+                    }
+
+                    if (dayTotal > 0) {
+                        // 这一天有数据
+                        const weekDay = pastDate.getDay(); // 获取星期几(0-6)
+                        weeklyData[weekDay] += dayTotal;
+                        if (!daysUsed.includes(weekDay)) {
+                            daysUsed.push(weekDay);
+                            recentUsageDays++;
+                        }
+                        hasRealData = true;
+                    }
+                }
+            } catch (error) {
+                console.error('处理周分布数据时出错:', error);
+            }
         }
     }
 
-    // 如果只有少量数据，生成更适合的数据展示
-    let weeklyData = new Array(7).fill(0);
+    console.log('周活动数据:', weeklyData);
+    console.log('活跃天数:', recentUsageDays, '活跃日期:', daysUsed);
 
-    if (hasRealData) {
-        weeklyData = realWeeklyData;
-
-        // 如果用户只使用了很少的天数(1-2天)，在图表中突出显示
-        if (recentUsageDays <= 2) {
-            // 添加解释文本
-            const explanationDiv = document.createElement('div');
-            explanationDiv.className = 'chart-explanation';
-            explanationDiv.textContent = `仅显示近期${recentUsageDays}天的使用数据。随着使用时间增加，图表将更加完整。`;
-            explanationDiv.style.padding = '10px';
-            explanationDiv.style.fontSize = '12px';
-            explanationDiv.style.color = '#666';
-            explanationDiv.style.textAlign = 'center';
-            chartElement.appendChild(explanationDiv);
-        }
-    } else {
-        // 使用更合理的模拟数据
-        // 标记当前日期为有活动的日子，加上前1-2天的随机活动
-        const activeDays = new Set([currentDay]);
-
-        // 随机选择1-2个额外的天来模拟最近使用
-        const daysToSimulate = Math.floor(Math.random() * 2) + 1;
-
-        for (let i = 0; i < daysToSimulate; i++) {
-            // 随机选择最近的1-3天
-            const dayDiff = Math.floor(Math.random() * 3) + 1;
-            const pastDay = (currentDay - dayDiff + 7) % 7; // 确保在0-6范围内
-            activeDays.add(pastDay);
-        }
-
-        // 设置活动天的数据，非活动天设为0或很小的值
-        for (let i = 0; i < 7; i++) {
-            if (activeDays.has(i)) {
-                // 活跃日，生成较大的随机数
-                weeklyData[i] = Math.floor(Math.random() * 600) + 400;
-            } else {
-                // 非活跃日，设为0或很小的数
-                weeklyData[i] = 0;
-            }
-        }
-
+    // 如果只有少量数据，添加提示说明
+    if (hasRealData && recentUsageDays <= 2) {
         // 添加解释文本
         const explanationDiv = document.createElement('div');
         explanationDiv.className = 'chart-explanation';
-        explanationDiv.textContent = '基于最近几天的使用情况生成的数据预览。随着使用时间增加，图表将展示真实使用模式。';
+        explanationDiv.textContent = `仅显示近期${recentUsageDays}天的使用数据。随着使用时间增加，图表将更加完整。`;
         explanationDiv.style.padding = '10px';
         explanationDiv.style.fontSize = '12px';
         explanationDiv.style.color = '#666';
@@ -2889,22 +2440,28 @@ function updateWeeklyDistributionChart(stats) {
         chartElement.appendChild(explanationDiv);
     }
 
+    // 如果没有数据，显示提示信息
+    if (!hasRealData) {
+        const noDataMessage = document.createElement('div');
+        noDataMessage.className = 'no-data-message';
+        noDataMessage.textContent = '暂无周使用数据';
+        noDataMessage.style.display = 'flex';
+        noDataMessage.style.justifyContent = 'center';
+        noDataMessage.style.alignItems = 'center';
+        noDataMessage.style.height = '100%';
+        noDataMessage.style.fontSize = '18px';
+        noDataMessage.style.color = '#aaa';
+        chartElement.appendChild(noDataMessage);
+        return;
+    }
+
     // 多彩配色方案 - 突出当前日期和有数据的天
     const colors = new Array(7).fill('rgba(200, 200, 200, 0.3)'); // 默认淡灰色
 
     // 突出显示有数据的天
-    if (hasRealData) {
-        daysUsed.forEach(day => {
-            colors[day] = 'rgba(54, 162, 235, 0.8)'; // 有数据的天使用亮蓝色
-        });
-    } else {
-        // 模拟数据情况下，突出显示活跃天
-        for (let i = 0; i < 7; i++) {
-            if (weeklyData[i] > 0) {
-                colors[i] = 'rgba(54, 162, 235, 0.8)';
-            }
-        }
-    }
+    daysUsed.forEach(day => {
+        colors[day] = 'rgba(54, 162, 235, 0.8)'; // 有数据的天使用亮蓝色
+    });
 
     // 当前天特别突出
     colors[currentDay] = 'rgba(255, 99, 132, 0.8)'; // 当前天使用红色
@@ -2958,12 +2515,6 @@ function updateWeeklyDistributionChart(stats) {
                                 return '无使用记录';
                             }
                             return `按键数量: ${context.raw.toLocaleString()}`;
-                        },
-                        afterLabel: function(context) {
-                            if (!hasRealData && weeklyData[context.dataIndex] > 0) {
-                                return '(预估数据)';
-                            }
-                            return '';
                         }
                     }
                 }
@@ -3113,4 +2664,208 @@ function updateTimeDistributionChart(stats) {
             }
         }
     });
+}
+
+// 应用按键数量排行图表
+function updateAppKeysChart(stats) {
+    const chartElement = document.getElementById('app-keys-chart');
+    if (!chartElement) return;
+
+    // 清除旧的图表
+    chartElement.innerHTML = '';
+    const canvas = document.createElement('canvas');
+    chartElement.appendChild(canvas);
+
+    // 准备数据
+    const appUsage = stats.app_usage || {};
+    const apps = Object.keys(appUsage);
+
+    // 按按键数量排序
+    apps.sort((a, b) => appUsage[b] - appUsage[a]);
+
+    // 取前10个应用
+    const topApps = apps.slice(0, 10);
+    const counts = topApps.map(app => appUsage[app]);
+
+    // 如果没有数据，显示提示信息
+    if (topApps.length === 0) {
+        const noDataMessage = document.createElement('div');
+        noDataMessage.className = 'no-data-message';
+        noDataMessage.textContent = '暂无应用数据';
+        noDataMessage.style.display = 'flex';
+        noDataMessage.style.justifyContent = 'center';
+        noDataMessage.style.alignItems = 'center';
+        noDataMessage.style.height = '100%';
+        noDataMessage.style.fontSize = '18px';
+        noDataMessage.style.color = '#aaa';
+        chartElement.appendChild(noDataMessage);
+        return;
+    }
+
+    // 使用渐变色彩
+    const colors = [
+        '#4a6cf7', // 主色调
+        '#5a76f8',
+        '#6a80f9',
+        '#7a8afa',
+        '#8a94fb',
+        '#9a9efc',
+        '#aaa8fd',
+        '#bab2fe',
+        '#cabcff',
+        '#dac6ff'
+    ];
+
+    // 创建图表 - 使用水平条形图
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: topApps,
+            datasets: [{
+                label: '按键次数',
+                data: counts,
+                backgroundColor: colors,
+                borderWidth: 0,
+                borderRadius: 4,
+                maxBarThickness: 18
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y', // 水平条形图
+            layout: {
+                padding: {
+                    left: 0,
+                    right: 10,
+                    top: 5,
+                    bottom: 5
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    titleFont: {
+                        size: 12
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            return `按键次数: ${context.raw.toLocaleString()}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    grid: {
+                        display: false,
+                    },
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)',
+                    },
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+            },
+        },
+    });
+}
+
+// 导出数据函数
+async function exportData() {
+    const format = document.getElementById('export-format').value;
+    const range = document.getElementById('export-range').value;
+    const type = document.getElementById('export-type').value;
+
+    try {
+        // 显示加载中状态
+        const confirmExportBtn = document.getElementById('confirm-export');
+        const originalText = confirmExportBtn.textContent;
+        confirmExportBtn.textContent = '导出中...';
+        confirmExportBtn.disabled = true;
+
+        // 调用后端API导出数据
+        const result = await invoke('export_data', { format, range, typeStr: type });
+
+        // 恢复按钮状态
+        confirmExportBtn.textContent = originalText;
+        confirmExportBtn.disabled = false;
+
+        // 显示成功消息
+        alert(`数据导出成功！\n文件已保存到: ${result}`);
+        hideModal('export-modal');
+    } catch (error) {
+        console.error('导出数据失败:', error);
+        alert(`导出数据失败: ${error}`);
+
+        // 恢复按钮状态
+        const confirmExportBtn = document.getElementById('confirm-export');
+        if (confirmExportBtn) {
+            confirmExportBtn.textContent = '导出';
+            confirmExportBtn.disabled = false;
+        }
+    }
+}
+
+// 删除数据函数
+async function deleteData() {
+    const range = document.getElementById('delete-range').value;
+    const isConfirmed = document.getElementById('confirm-delete-checkbox').checked;
+
+    if (!isConfirmed) {
+        alert('请确认您了解此操作不可撤销');
+        return;
+    }
+
+    try {
+        // 显示加载中状态
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+        const originalText = confirmDeleteBtn.textContent;
+        confirmDeleteBtn.textContent = '删除中...';
+        confirmDeleteBtn.disabled = true;
+
+        // 调用后端API删除数据
+        const result = await invoke('delete_data', { range });
+
+        // 恢复按钮状态
+        confirmDeleteBtn.textContent = originalText;
+        confirmDeleteBtn.disabled = true; // 保持禁用状态，直到用户再次勾选确认框
+
+        // 显示成功消息
+        alert(result);
+        hideModal('delete-modal');
+
+        // 重置确认复选框
+        document.getElementById('confirm-delete-checkbox').checked = false;
+
+        // 更新数据显示
+        loadData();
+    } catch (error) {
+        console.error('删除数据失败:', error);
+        alert(`删除数据失败: ${error}`);
+
+        // 恢复按钮状态
+        const confirmDeleteBtn = document.getElementById('confirm-delete');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.textContent = '删除';
+            confirmDeleteBtn.disabled = false;
+        }
+    }
 }

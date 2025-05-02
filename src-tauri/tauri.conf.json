@@ -10,8 +10,8 @@
         "withGlobalTauri": true,
         "windows": [{
             "title": "keyboard-statistics",
-            "width": 800,
-            "height": 600,
+            "width": 1200,
+            "height": 900,
             "resizable": true,
             "visible": false
         }],

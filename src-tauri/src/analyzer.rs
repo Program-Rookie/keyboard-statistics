@@ -26,6 +26,13 @@ pub struct KeyStats {
     pub prev_backspace_ratio: f64,
     pub activity_heatmap: HashMap<String, u64>,
     pub key_combos: Vec<KeyCombo>,
+    pub app_time_distribution: Vec<AppTimeData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppTimeData {
+    pub label: String,
+    pub data: Vec<u64>,
 }
 
 pub struct DataAnalyzer {
@@ -50,6 +57,7 @@ impl DataAnalyzer {
         let time_distribution = self.get_time_distribution(&start_time, &end_time)?;
         let activity_heatmap = self.get_activity_heatmap(time_range)?;
         let key_combos = self.get_key_combos(&start_time, &end_time, 10)?;
+        let app_time_distribution = self.get_app_time_distribution(&start_time, &end_time)?;
         
         // 获取前一周期的统计数据
         let (prev_start_time, prev_end_time) = self.get_previous_time_range(time_range)?;
@@ -71,6 +79,7 @@ impl DataAnalyzer {
             prev_backspace_ratio,
             activity_heatmap,
             key_combos,
+            app_time_distribution,
         })
     }
 
@@ -468,24 +477,36 @@ impl DataAnalyzer {
     fn get_key_combos(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>, limit: usize) 
         -> Result<Vec<KeyCombo>, rusqlite::Error> {
         // 注意：这个函数实现假设数据库中有一个key_combos表或类似的存储组合键信息的表
-        // 如果数据库结构不支持这种查询，则返回模拟数据
+        // 如果数据库结构不支持这种查询，则返回空数组
         
-        // 尝试查询组合键数据
-        let mut combos = Vec::new();
-        
-        // 示例：假设数据库中存在组合键信息，实际实现需要根据数据库结构调整
-        // 这里是模拟数据，实际项目中应该从数据库获取
-        combos.push(KeyCombo { combo: "Ctrl+C".to_string(), count: 120 });
-        combos.push(KeyCombo { combo: "Ctrl+V".to_string(), count: 115 });
-        combos.push(KeyCombo { combo: "Ctrl+Z".to_string(), count: 87 });
-        combos.push(KeyCombo { combo: "Alt+Tab".to_string(), count: 76 });
-        combos.push(KeyCombo { combo: "Ctrl+X".to_string(), count: 65 });
-        combos.push(KeyCombo { combo: "Ctrl+A".to_string(), count: 54 });
-        combos.push(KeyCombo { combo: "Ctrl+S".to_string(), count: 49 });
-        combos.push(KeyCombo { combo: "Win+E".to_string(), count: 34 });
-        combos.push(KeyCombo { combo: "Ctrl+F".to_string(), count: 28 });
-        combos.push(KeyCombo { combo: "Alt+F4".to_string(), count: 19 });
+        // 返回空数组，不再返回模拟数据
+        let combos = Vec::new();
         
         Ok(combos)
+    }
+    
+    // 获取应用时间分布数据
+    fn get_app_time_distribution(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) 
+        -> Result<Vec<AppTimeData>, rusqlite::Error> {
+        // 获取前5个最常用的应用
+        let mut app_usage = self.get_app_usage(start_time, end_time)?;
+        let mut top_apps: Vec<_> = app_usage.iter()
+            .map(|(app, count)| (app.clone(), *count))
+            .collect();
+            
+        // 按使用量降序排序
+        top_apps.sort_by(|a, b| b.1.cmp(&a.1));
+        
+        // 获取前5个应用
+        let top_apps = if top_apps.len() > 5 {
+            top_apps[0..5].to_vec()
+        } else {
+            top_apps
+        };
+        
+        // 目前我们只返回空数据，实际项目中应该基于数据库中的时间分布数据
+        let mut result = Vec::new();
+        
+        Ok(result)
     }
 } 
