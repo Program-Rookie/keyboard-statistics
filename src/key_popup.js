@@ -106,7 +106,8 @@ listen('key-pressed', event => {
     if (popupContainer.children.length > 0) {
         const offset = (popupContainer.children.length % 3) - 1; // -1, 0, 1
         if (offset !== 0) {
-            popup.style.transform = `translateX(${offset * 10}px)`;
+            // 水平错开但不改变垂直位置，避免顶部溢出
+            popup.style.transform = `translateX(${offset * 8}px)`;
         }
     }
 
