@@ -1153,6 +1153,10 @@ function updateActivityHeatmap(stats) {
     // 清除旧的内容
     chartElement.innerHTML = '';
 
+    // 获取热力图数据
+    const heatmapData = stats.activity_heatmap || {};
+    const heatmapType = heatmapData.type || 2; // 默认为周热力图
+
     // 创建热力图容器
     const heatmapWrapper = document.createElement('div');
     heatmapWrapper.className = 'heatmap-wrapper';
@@ -1162,6 +1166,103 @@ function updateActivityHeatmap(stats) {
     heatmapWrapper.style.height = '100%';
     chartElement.appendChild(heatmapWrapper);
 
+    // 添加标题
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'heatmap-title';
+    titleDiv.style.textAlign = 'center';
+    titleDiv.style.marginBottom = '10px';
+
+    // 根据热力图类型设置标题和显示样式
+    switch (parseInt(heatmapType)) {
+        case 1: // 今日热力图（按小时）
+            titleDiv.textContent = '今日活动热力图（按小时）';
+            createTodayHeatmap(heatmapWrapper, heatmapData);
+            break;
+        case 2: // 周热力图（按星期和小时）
+            titleDiv.textContent = '本周活动热力图（按星期和小时）';
+            createWeekHeatmap(heatmapWrapper, heatmapData);
+            break;
+        case 3: // 月热力图（按日期和小时）
+            titleDiv.textContent = '本月活动热力图（按日期和小时）';
+            createMonthHeatmap(heatmapWrapper, heatmapData);
+            break;
+        case 4: // 全部时间热力图（按星期和小时）
+            titleDiv.textContent = '所有时间活动热力图（按星期和小时）';
+            createAllTimeHeatmap(heatmapWrapper, heatmapData);
+            break;
+        default:
+            titleDiv.textContent = '活动热力图';
+            createWeekHeatmap(heatmapWrapper, heatmapData); // 默认使用周热力图样式
+    }
+
+    heatmapWrapper.insertBefore(titleDiv, heatmapWrapper.firstChild);
+}
+
+// 创建今日热力图（按小时）
+function createTodayHeatmap(container, heatmapData) {
+    // 创建小时刻度行
+    const hourRow = document.createElement('div');
+    hourRow.className = 'heatmap-hour-labels';
+    hourRow.style.display = 'flex';
+    hourRow.style.marginBottom = '5px';
+    hourRow.style.fontSize = '10px';
+    hourRow.style.paddingLeft = '10px';
+    container.appendChild(hourRow);
+
+    // 添加小时标签
+    for (let hour = 0; hour < 24; hour++) {
+        const hourLabel = document.createElement('div');
+        hourLabel.textContent = `${hour}:00`;
+        hourLabel.style.flex = '1';
+        hourLabel.style.textAlign = 'center';
+        hourRow.appendChild(hourLabel);
+    }
+
+    // 创建热力图条
+    const heatBar = document.createElement('div');
+    heatBar.className = 'heatmap-bar';
+    heatBar.style.display = 'flex';
+    heatBar.style.height = '50px';
+    heatBar.style.marginTop = '10px';
+    container.appendChild(heatBar);
+
+    // 找出最大值用于计算颜色强度
+    let maxValue = 0;
+    Object.entries(heatmapData).forEach(([key, value]) => {
+        if (key.startsWith('h_') && value > maxValue) {
+            maxValue = value;
+        }
+    });
+
+    // 确保maxValue不为0，避免除以零
+    maxValue = maxValue || 1;
+
+    // 为每个小时创建一个单元格
+    for (let hour = 0; hour < 24; hour++) {
+        const hourKey = `h_${hour.toString().padStart(2, '0')}`;
+        const value = heatmapData[hourKey] || 0;
+
+        // 计算颜色强度 (0.1-0.9)
+        const intensity = value > 0 ? Math.min(0.9, Math.max(0.1, value / maxValue)) : 0.05;
+
+        // 创建一个单元格
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        cell.style.flex = '1';
+        cell.style.margin = '0 1px';
+        cell.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
+        cell.style.borderRadius = '2px';
+        cell.title = `${hour}:00 - 活跃度: ${value}`;
+
+        heatBar.appendChild(cell);
+    }
+
+    // 添加图例
+    addHeatmapLegend(container);
+}
+
+// 创建周热力图（按星期和小时）
+function createWeekHeatmap(container, heatmapData) {
     // 添加标题行
     const headerRow = document.createElement('div');
     headerRow.className = 'heatmap-header';
@@ -1170,7 +1271,7 @@ function updateActivityHeatmap(stats) {
     headerRow.style.marginBottom = '10px';
     headerRow.style.fontSize = '10px';
     headerRow.style.paddingLeft = '50px'; // 为左侧的日期标签留出空间
-    heatmapWrapper.appendChild(headerRow);
+    container.appendChild(headerRow);
 
     // 添加小时标签
     for (let hour = 0; hour < 24; hour += 3) {
@@ -1185,10 +1286,10 @@ function updateActivityHeatmap(stats) {
     const mainContent = document.createElement('div');
     mainContent.style.display = 'flex';
     mainContent.style.flex = '1';
-    heatmapWrapper.appendChild(mainContent);
+    container.appendChild(mainContent);
 
     // 添加日期列
-    const dayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const dayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     const dayContainer = document.createElement('div');
     dayContainer.className = 'heatmap-day-labels';
     dayContainer.style.display = 'flex';
@@ -1214,20 +1315,19 @@ function updateActivityHeatmap(stats) {
     heatmapGrid.style.flexDirection = 'column';
     mainContent.appendChild(heatmapGrid);
 
-    // 获取实际时间分布数据
-    const timeDistribution = stats.time_distribution || {};
-
     // 找出最大值用于计算颜色强度
     let maxValue = 0;
-    Object.values(timeDistribution).forEach(val => {
-        if (val > maxValue) maxValue = val;
+    Object.entries(heatmapData).forEach(([key, value]) => {
+        if (key.startsWith('d') && !isNaN(parseInt(key.charAt(1))) && value > maxValue) {
+            maxValue = value;
+        }
     });
 
-    // 如果maxValue为0，设置一个默认值以避免除以0
-    maxValue = maxValue || 1000;
+    // 确保maxValue不为0，避免除以零
+    maxValue = maxValue || 1;
 
-    // 为每一天创建一行
-    for (let day = 0; day < 7; day++) {
+    // SQL的%w从周日0开始，所以我们直接按这个顺序创建UI
+    for (let day = 0; day <= 6; day++) {
         const dayRow = document.createElement('div');
         dayRow.className = 'heatmap-row';
         dayRow.style.display = 'flex';
@@ -1238,36 +1338,300 @@ function updateActivityHeatmap(stats) {
         // 为每个小时创建一个单元格
         for (let hour = 0; hour < 24; hour++) {
             const hourKey = hour.toString().padStart(2, '0');
-            const dayKey = `d${day}`; // 假设后端有按天统计的数据
+            const key = `d${day}_h${hourKey}`;
 
-            // 从实际数据获取值
-            let value = 0;
+            // 获取活动值
+            const value = heatmapData[key] || 0;
 
-            // 先尝试获取特定天的特定小时数据
-            if (timeDistribution[`${dayKey}_${hourKey}`]) {
-                value = timeDistribution[`${dayKey}_${hourKey}`];
-            }
-            // 如果没有特定天的数据，尝试只按小时统计的数据
-            else if (timeDistribution[hourKey]) {
-                // 将总量平均分配到7天
-                value = Math.floor(timeDistribution[hourKey] / 7);
-            }
-
-            // 计算颜色强度 (0.1-0.8)
-            const intensity = value > 0 ? Math.min(0.8, Math.max(0.1, value / maxValue * 0.8)) : 0.05;
+            // 计算颜色强度 (0.1-0.9)
+            const intensity = value > 0 ? Math.min(0.9, Math.max(0.1, value / maxValue)) : 0.05;
 
             // 创建一个单元格
             const cell = document.createElement('div');
             cell.className = 'heatmap-cell';
             cell.style.flex = '1';
             cell.style.margin = '0 1px';
-            cell.style.backgroundColor = `rgba(74, 108, 247, ${intensity})`;
+            cell.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
             cell.style.borderRadius = '2px';
             cell.title = `${dayLabels[day]} ${hour}:00 - 活跃度: ${value}`;
 
             dayRow.appendChild(cell);
         }
     }
+
+    // 添加图例
+    addHeatmapLegend(container);
+}
+
+// 创建月热力图（按日期和小时分布）
+function createMonthHeatmap(container, heatmapData) {
+    // 获取当前月份的天数
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    // 创建日期标签行
+    const daysRow = document.createElement('div');
+    daysRow.style.display = 'flex';
+    daysRow.style.marginBottom = '15px';
+    daysRow.style.marginTop = '10px';
+    container.appendChild(daysRow);
+
+    // 添加空白单元格（为小时标签留出位置）
+    const emptyCell = document.createElement('div');
+    emptyCell.style.width = '50px';
+    daysRow.appendChild(emptyCell);
+
+    // 添加日期标签
+    const dayLabelsContainer = document.createElement('div');
+    dayLabelsContainer.style.display = 'flex';
+    dayLabelsContainer.style.flex = '1';
+    dayLabelsContainer.style.overflowX = 'auto';
+    dayLabelsContainer.style.paddingBottom = '5px';
+    daysRow.appendChild(dayLabelsContainer);
+
+    // 添加日期单元格
+    for (let i = 1; i <= daysInMonth; i++) {
+        const dayLabel = document.createElement('div');
+        dayLabel.textContent = i;
+        dayLabel.style.flex = '1';
+        dayLabel.style.minWidth = '20px';
+        dayLabel.style.textAlign = 'center';
+        dayLabel.style.fontSize = '10px';
+        dayLabelsContainer.appendChild(dayLabel);
+    }
+
+    // 主内容区域
+    const gridContainer = document.createElement('div');
+    gridContainer.style.display = 'flex';
+    gridContainer.style.flex = '1';
+    container.appendChild(gridContainer);
+
+    // 小时标签列
+    const hoursColumn = document.createElement('div');
+    hoursColumn.style.display = 'flex';
+    hoursColumn.style.flexDirection = 'column';
+    hoursColumn.style.width = '50px';
+    gridContainer.appendChild(hoursColumn);
+
+    for (let hour = 0; hour < 24; hour += 2) {
+        const hourLabel = document.createElement('div');
+        hourLabel.textContent = `${hour}:00`;
+        hourLabel.style.flex = '1';
+        hourLabel.style.textAlign = 'right';
+        hourLabel.style.paddingRight = '10px';
+        hourLabel.style.fontSize = '10px';
+        hourLabel.style.display = 'flex';
+        hourLabel.style.alignItems = 'center';
+        hourLabel.style.justifyContent = 'flex-end';
+        hoursColumn.appendChild(hourLabel);
+    }
+
+    // 热力图网格
+    const gridWrapper = document.createElement('div');
+    gridWrapper.style.flex = '1';
+    gridWrapper.style.overflowX = 'auto';
+    gridContainer.appendChild(gridWrapper);
+
+    const grid = document.createElement('div');
+    grid.style.display = 'flex';
+    grid.style.flexDirection = 'column';
+    grid.style.height = '100%';
+    gridWrapper.appendChild(grid);
+
+    // 找出最大值用于计算颜色强度
+    let maxValue = 0;
+    Object.entries(heatmapData).forEach(([key, value]) => {
+        if (key.startsWith('d') && !isNaN(parseInt(key.charAt(1))) && value > maxValue) {
+            maxValue = value;
+        }
+    });
+
+    // 确保maxValue不为0，避免除以零
+    maxValue = maxValue || 1;
+
+    // 为每2小时创建一行
+    for (let hour = 0; hour < 24; hour += 2) {
+        const hourRow = document.createElement('div');
+        hourRow.style.display = 'flex';
+        hourRow.style.flex = '1';
+        grid.appendChild(hourRow);
+
+        // 为每一天创建一个单元格
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayPadded = day.toString().padStart(2, '0');
+            const hourPadded = hour.toString().padStart(2, '0');
+
+            // 修正键名格式，确保与后端返回的格式一致
+            const key = `d${dayPadded}_h${hourPadded}`;
+
+            // 获取活动值，如果没有数据则为0
+            let value = 0;
+            for (const [dataKey, dataValue] of Object.entries(heatmapData)) {
+                // 忽略type键
+                if (dataKey === 'type') continue;
+
+                // 检查键名是否匹配日期和小时
+                if (dataKey === key) {
+                    value = dataValue;
+                    break;
+                }
+            }
+
+            // 计算颜色强度 (0.1-0.9)
+            const intensity = value > 0 ? Math.min(0.9, Math.max(0.1, value / maxValue)) : 0.05;
+
+            // 创建一个单元格
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+            cell.style.flex = '1';
+            cell.style.minWidth = '20px';
+            cell.style.margin = '1px';
+            cell.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
+            cell.style.borderRadius = '2px';
+            cell.title = `${day}日 ${hour}:00 - 活跃度: ${value}`;
+
+            hourRow.appendChild(cell);
+        }
+    }
+
+    // 添加图例
+    addHeatmapLegend(container);
+}
+
+// 创建所有时间热力图（按星期和小时的汇总）
+function createAllTimeHeatmap(container, heatmapData) {
+    // 添加标题行
+    const headerRow = document.createElement('div');
+    headerRow.className = 'heatmap-header';
+    headerRow.style.display = 'flex';
+    headerRow.style.justifyContent = 'space-around';
+    headerRow.style.marginBottom = '10px';
+    headerRow.style.fontSize = '10px';
+    headerRow.style.paddingLeft = '50px'; // 为左侧的日期标签留出空间
+    container.appendChild(headerRow);
+
+    // 添加小时标签
+    for (let hour = 0; hour < 24; hour += 3) {
+        const hourLabel = document.createElement('div');
+        hourLabel.textContent = `${hour}:00`;
+        hourLabel.style.flexBasis = '12.5%';
+        hourLabel.style.textAlign = 'center';
+        headerRow.appendChild(hourLabel);
+    }
+
+    // 主体内容容器
+    const mainContent = document.createElement('div');
+    mainContent.style.display = 'flex';
+    mainContent.style.flex = '1';
+    container.appendChild(mainContent);
+
+    // 添加日期列
+    const dayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const dayContainer = document.createElement('div');
+    dayContainer.className = 'heatmap-day-labels';
+    dayContainer.style.display = 'flex';
+    dayContainer.style.flexDirection = 'column';
+    dayContainer.style.justifyContent = 'space-around';
+    dayContainer.style.width = '50px';
+    mainContent.appendChild(dayContainer);
+
+    dayLabels.forEach(day => {
+        const dayLabel = document.createElement('div');
+        dayLabel.textContent = day;
+        dayLabel.style.textAlign = 'right';
+        dayLabel.style.paddingRight = '10px';
+        dayLabel.style.fontSize = '12px';
+        dayContainer.appendChild(dayLabel);
+    });
+
+    // 创建热力图表格
+    const heatmapGrid = document.createElement('div');
+    heatmapGrid.className = 'heatmap-grid';
+    heatmapGrid.style.display = 'flex';
+    heatmapGrid.style.flex = '1';
+    heatmapGrid.style.flexDirection = 'column';
+    mainContent.appendChild(heatmapGrid);
+
+    // 找出最大值用于计算颜色强度
+    let maxValue = 0;
+    Object.entries(heatmapData).forEach(([key, value]) => {
+        if (key.startsWith('d') && !isNaN(parseInt(key.charAt(1))) && value > maxValue) {
+            maxValue = value;
+        }
+    });
+
+    // 确保maxValue不为0，避免除以零
+    maxValue = maxValue || 1;
+
+    // SQL的%w从周日0开始，所以我们直接按这个顺序创建UI
+    for (let day = 0; day <= 6; day++) {
+        const dayRow = document.createElement('div');
+        dayRow.className = 'heatmap-row';
+        dayRow.style.display = 'flex';
+        dayRow.style.flex = '1';
+        dayRow.style.margin = '1px 0';
+        heatmapGrid.appendChild(dayRow);
+
+        // 为每个小时创建一个单元格
+        for (let hour = 0; hour < 24; hour++) {
+            const hourKey = hour.toString().padStart(2, '0');
+            const key = `d${day}_h${hourKey}`;
+
+            // 获取活动值
+            const value = heatmapData[key] || 0;
+
+            // 计算颜色强度 (0.1-0.9)
+            const intensity = value > 0 ? Math.min(0.9, Math.max(0.1, value / maxValue)) : 0.05;
+
+            // 创建一个单元格
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+            cell.style.flex = '1';
+            cell.style.margin = '0 1px';
+            cell.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
+            cell.style.borderRadius = '2px';
+            cell.title = `${dayLabels[day]} ${hour}:00 - 活跃度: ${value}`;
+
+            dayRow.appendChild(cell);
+        }
+    }
+
+    // 添加图例
+    addHeatmapLegend(container);
+}
+
+// 添加热力图图例
+function addHeatmapLegend(container) {
+    const legendContainer = document.createElement('div');
+    legendContainer.className = 'heatmap-legend';
+    legendContainer.style.display = 'flex';
+    legendContainer.style.justifyContent = 'center';
+    legendContainer.style.alignItems = 'center';
+    legendContainer.style.marginTop = '15px';
+    legendContainer.style.fontSize = '11px';
+    container.appendChild(legendContainer);
+
+    const lowLabel = document.createElement('span');
+    lowLabel.textContent = '低';
+    legendContainer.appendChild(lowLabel);
+
+    // 创建渐变图例
+    for (let i = 1; i <= 5; i++) {
+        const intensity = i * 0.15;
+        const legendItem = document.createElement('div');
+        legendItem.style.width = '20px';
+        legendItem.style.height = '10px';
+        legendItem.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
+        legendItem.style.margin = '0 2px';
+        legendItem.style.borderRadius = '2px';
+        legendContainer.appendChild(legendItem);
+    }
+
+    const highLabel = document.createElement('span');
+    highLabel.textContent = '高';
+    legendContainer.appendChild(highLabel);
 }
 
 // 初始化信息图标提示框

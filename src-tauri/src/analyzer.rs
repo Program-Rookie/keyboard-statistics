@@ -1,5 +1,5 @@
 use crate::database::KeyboardEventRecord;
-use chrono::{DateTime, Local, Duration, NaiveDateTime, TimeZone};
+use chrono::{DateTime, Local, Duration, NaiveDateTime, TimeZone, Datelike, Weekday};
 use rusqlite::Connection;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
@@ -18,6 +18,7 @@ pub struct KeyStats {
     pub prev_total_presses: u64,
     pub prev_avg_kpm: f64,
     pub prev_backspace_ratio: f64,
+    pub activity_heatmap: HashMap<String, u64>,
 }
 
 pub struct DataAnalyzer {
@@ -40,6 +41,7 @@ impl DataAnalyzer {
         let key_categories = self.get_key_categories(&start_time, &end_time)?;
         let app_usage = self.get_app_usage(&start_time, &end_time)?;
         let time_distribution = self.get_time_distribution(&start_time, &end_time)?;
+        let activity_heatmap = self.get_activity_heatmap(time_range)?;
         
         // 获取前一周期的统计数据
         let (prev_start_time, prev_end_time) = self.get_previous_time_range(time_range)?;
@@ -59,6 +61,7 @@ impl DataAnalyzer {
             prev_total_presses,
             prev_avg_kpm,
             prev_backspace_ratio,
+            activity_heatmap,
         })
     }
 
@@ -252,7 +255,7 @@ impl DataAnalyzer {
             "修饰键".to_string()
         } else if key.contains("F") && key[1..].parse::<u32>().is_ok() {
             "功能键".to_string()
-        } else if key.contains("Arrow") || key == "Home" || key == "End" || key == "PageUp" || key == "PageDown" {
+        } else if key.contains("Arrow") || key == "Home" || key == "End" || key == "PageUp" || key == "PageDown" || key == "↑" || key == "↓" {
             "导航键".to_string()
         } else if key == "Enter" || key == "Space" || key == "Tab" || key == "Backspace" || key == "Delete" {
             "编辑键".to_string()
@@ -294,5 +297,161 @@ impl DataAnalyzer {
         };
         
         Ok((prev_start_time, prev_end_time))
+    }
+
+    // 获取活动热力图数据
+    fn get_activity_heatmap(&self, time_range: &str) -> Result<HashMap<String, u64>, rusqlite::Error> {
+        match time_range {
+            "today" => self.get_today_heatmap(),
+            "week" => self.get_week_heatmap(),
+            "month" => self.get_month_heatmap(),
+            "all" => self.get_all_time_heatmap(),
+            _ => Err(rusqlite::Error::InvalidQuery),
+        }
+    }
+
+    // 获取今日活动热力图（按小时分布）
+    fn get_today_heatmap(&self) -> Result<HashMap<String, u64>, rusqlite::Error> {
+        let (start_time, end_time) = self.get_time_range("today")?;
+        
+        let mut stmt = self.conn.prepare(
+            "SELECT strftime('%H', datetime(timestamp, 'localtime')) as hour, COUNT(*) as count 
+             FROM keyboard_events 
+             WHERE timestamp BETWEEN ?1 AND ?2 
+             GROUP BY hour"
+        )?;
+        
+        let rows = stmt.query_map(
+            params![start_time.to_rfc3339(), end_time.to_rfc3339()],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, u64>(1)?
+                ))
+            }
+        )?;
+        
+        let mut heatmap = HashMap::new();
+        for row in rows {
+            let (hour, count) = row?;
+            heatmap.insert(format!("h_{}", hour), count);
+        }
+        
+        // 添加元数据以便前端区分热力图类型
+        heatmap.insert("type".to_string(), 1); // 1表示按小时的今日热力图
+        
+        Ok(heatmap)
+    }
+
+    // 获取本周活动热力图（按星期和小时分布）
+    fn get_week_heatmap(&self) -> Result<HashMap<String, u64>, rusqlite::Error> {
+        let (start_time, end_time) = self.get_time_range("week")?;
+        
+        let mut stmt = self.conn.prepare(
+            "SELECT 
+                strftime('%w', datetime(timestamp, 'localtime')) as day_of_week,
+                strftime('%H', datetime(timestamp, 'localtime')) as hour, 
+                COUNT(*) as count 
+             FROM keyboard_events 
+             WHERE timestamp BETWEEN ?1 AND ?2 
+             GROUP BY day_of_week, hour"
+        )?;
+        
+        let rows = stmt.query_map(
+            params![start_time.to_rfc3339(), end_time.to_rfc3339()],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, u64>(2)?
+                ))
+            }
+        )?;
+        
+        let mut heatmap = HashMap::new();
+        for row in rows {
+            let (day, hour, count) = row?;
+            // 使用格式"d_h"存储：d为星期几(0-6，0为周日)，h为小时(0-23)
+            heatmap.insert(format!("d{}_h{}", day, hour), count);
+        }
+        
+        // 添加元数据以便前端区分热力图类型
+        heatmap.insert("type".to_string(), 2); // 2表示按星期和小时的周热力图
+        
+        Ok(heatmap)
+    }
+
+    // 获取本月活动热力图（按日期和小时分布）
+    fn get_month_heatmap(&self) -> Result<HashMap<String, u64>, rusqlite::Error> {
+        let (start_time, end_time) = self.get_time_range("month")?;
+        
+        let mut stmt = self.conn.prepare(
+            "SELECT 
+                strftime('%d', datetime(timestamp, 'localtime')) as day,
+                strftime('%H', datetime(timestamp, 'localtime')) as hour, 
+                COUNT(*) as count 
+             FROM keyboard_events 
+             WHERE timestamp BETWEEN ?1 AND ?2 
+             GROUP BY day, hour"
+        )?;
+        
+        let rows = stmt.query_map(
+            params![start_time.to_rfc3339(), end_time.to_rfc3339()],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, u64>(2)?
+                ))
+            }
+        )?;
+        
+        let mut heatmap = HashMap::new();
+        for row in rows {
+            let (day, hour, count) = row?;
+            // 确保格式与前端期望的格式一致：d01_h00表示1日0时
+            heatmap.insert(format!("d{}_h{}", day, hour), count);
+        }
+        
+        // 添加元数据以便前端区分热力图类型
+        heatmap.insert("type".to_string(), 3); // 3表示按日期和小时的月热力图
+        
+        Ok(heatmap)
+    }
+
+    // 获取所有时间活动热力图（按星期和小时的汇总）
+    fn get_all_time_heatmap(&self) -> Result<HashMap<String, u64>, rusqlite::Error> {
+        // 对于全部数据，我们按星期几和小时汇总
+        let mut stmt = self.conn.prepare(
+            "SELECT 
+                strftime('%w', datetime(timestamp, 'localtime')) as day_of_week,
+                strftime('%H', datetime(timestamp, 'localtime')) as hour, 
+                COUNT(*) as count 
+             FROM keyboard_events 
+             GROUP BY day_of_week, hour"
+        )?;
+        
+        let rows = stmt.query_map(
+            params![],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, u64>(2)?
+                ))
+            }
+        )?;
+        
+        let mut heatmap = HashMap::new();
+        for row in rows {
+            let (day, hour, count) = row?;
+            // 确保格式与前端期望的格式一致：d0_h00表示周日0时
+            heatmap.insert(format!("d{}_h{}", day, hour), count);
+        }
+        
+        // 添加元数据以便前端区分热力图类型
+        heatmap.insert("type".to_string(), 4); // 4表示所有时间的热力图
+        
+        Ok(heatmap)
     }
 } 
