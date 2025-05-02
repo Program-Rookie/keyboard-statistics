@@ -5,7 +5,7 @@
     font-weight: 400;
     color: #333;
     background-color: #f6f6f6;
-    --primary-color: #4a6cf7;
+    --primary-color: #ff4f76;
     --secondary-color: #6c757d;
     --success-color: #28a745;
     --danger-color: #dc3545;
@@ -15,6 +15,9 @@
     --dark-color: #343a40;
     --border-color: #dee2e6;
     --shadow-color: rgba(0, 0, 0, 0.1);
+    --card-bg: #ffffff;
+    --card-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+    --text-color: #333333;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -82,11 +85,11 @@ body {
 }
 
 .nav-item:hover {
-    background-color: #f0f4ff;
+    background-color: #fff8f9;
 }
 
 .nav-item.active {
-    background-color: #e6ecff;
+    background-color: #fff1f3;
     border-left: 4px solid var(--primary-color);
     font-weight: 500;
 }
@@ -112,19 +115,19 @@ body {
 }
 
 .status-indicator.active {
-    background-color: #28a745;
+    background-color: #ff4f76;
     animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
     0% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        box-shadow: 0 0 0 0 rgba(255, 79, 118, 0.7);
     }
     70% {
-        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+        box-shadow: 0 0 0 10px rgba(255, 79, 118, 0);
     }
     100% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        box-shadow: 0 0 0 0 rgba(255, 79, 118, 0);
     }
 }
 
@@ -305,49 +308,228 @@ body {
 
 .chart-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 24px;
+    margin-bottom: 35px;
 }
 
 .chart-card {
     background-color: var(--card-bg);
-    border-radius: 8px;
+    border-radius: 16px;
     box-shadow: var(--card-shadow);
-    padding: 15px;
-    height: 300px;
+    padding: 20px;
+    min-height: 300px;
+    height: auto;
     position: relative;
     overflow: hidden;
     transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
 }
 
 .chart-card h3 {
-    font-size: 16px;
+    font-size: 18px;
     margin-top: 0;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
     color: var(--text-color);
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chart-card h3::after {
+    content: '';
+    position: absolute;
+    top: 50px;
+    left: 0;
+    width: 40px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), transparent);
+    border-radius: 2px;
 }
 
 .chart {
     width: 100%;
-    height: calc(100% - 30px);
-    /* 减小图表容器高度，留出标题空间 */
+    flex: 1;
     position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* 图表加载动画 */
+
+@keyframes chartLoading {
+    0% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0.6;
+    }
 }
 
 .placeholder-chart {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100%;
+    width: 100%;
     color: var(--secondary-color);
-    background-color: #f8f9fa;
-    border-radius: 4px;
+    background-color: rgba(248, 249, 250, 0.7);
+    border-radius: 12px;
+    font-size: 14px;
+    animation: chartLoading 1.5s infinite;
+}
+
+.placeholder-chart::before {
+    content: "📊";
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+
+/* 不同类型图表的自适应样式 */
+
+.chart-card.bar-chart {
+    min-height: 350px;
+}
+
+.chart-card.pie-chart {
+    min-height: 320px;
+}
+
+.chart-card.line-chart {
+    min-height: 300px;
+}
+
+.chart-card.hotmap {
+    min-height: 380px;
+}
+
+
+/* 响应式调整 */
+
+@media (max-width: 1200px) {
+    .chart-container {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+    .chart-card h3 {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        grid-template-columns: 1fr;
+    }
+    .chart-card {
+        min-height: 280px;
+    }
+    .chart-card.hotmap {
+        min-height: 340px;
+    }
 }
 
 .chart-card.full-width {
     grid-column: 1 / -1;
+}
+
+
+/* 热力图样式美化 */
+
+.heatmap-wrapper {
+    border-radius: 12px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.6);
+}
+
+.heatmap-cell {
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.05);
+}
+
+
+/* 无数据消息样式 */
+
+.no-data-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    font-size: 16px;
+    color: #aaa;
+    background-color: rgba(248, 249, 250, 0.7);
+    border-radius: 12px;
+    border: 1px dashed #ddd;
+}
+
+
+/* 提示框样式 */
+
+.tooltip {
+    position: absolute;
+    background-color: rgba(51, 51, 51, 0.9);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    max-width: 250px;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    transform: translateY(5px);
+}
+
+.tooltip.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 6px 6px;
+    border-style: solid;
+    border-color: transparent transparent rgba(51, 51, 51, 0.9);
+}
+
+
+/* 图表说明文本样式 */
+
+.chart-explanation {
+    padding: 10px;
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+    font-style: italic;
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    margin-top: 10px;
 }
 
 
@@ -405,18 +587,18 @@ input:focus {
     color: white;
     border: none;
     padding: 12px 25px;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
     font-size: 1rem;
     font-weight: 500;
     transition: all 0.3s;
-    box-shadow: 0 4px 6px rgba(74, 108, 247, 0.2);
+    box-shadow: 0 4px 12px rgba(255, 79, 118, 0.25);
 }
 
 .primary-btn:hover {
-    background-color: #3a5bd9;
+    background-color: #ff3861;
     transform: translateY(-2px);
-    box-shadow: 0 6px 8px rgba(74, 108, 247, 0.25);
+    box-shadow: 0 6px 16px rgba(255, 79, 118, 0.35);
 }
 
 .primary-btn:active {
@@ -1038,34 +1220,98 @@ button {
 }
 
 
-/* 提示框样式 */
+/* 分区标签样式 */
 
-.tooltip {
-    position: absolute;
-    background-color: #333;
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-size: 12px;
-    max-width: 250px;
-    z-index: 1000;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s;
+.section-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
 }
 
-.tooltip.show {
-    opacity: 1;
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    position: relative;
+    color: var(--secondary-color);
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
-.tooltip::after {
+.tab.active {
+    color: var(--primary-color);
+}
+
+.tab.active::after {
     content: '';
     position: absolute;
-    top: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 0 6px 6px;
-    border-style: solid;
-    border-color: transparent transparent #333;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--primary-color);
+}
+
+.tab:hover:not(.active) {
+    color: var(--primary-color);
+    opacity: 0.8;
+}
+
+.section {
+    display: none;
+}
+
+.section.active {
+    display: block;
+}
+
+
+/* 图表着色方案 */
+
+.chart-colors {
+    --chart-color-1: var(--primary-color);
+    --chart-color-2: #6c5ce7;
+    --chart-color-3: #00cec9;
+    --chart-color-4: #fdcb6e;
+    --chart-color-5: #e17055;
+    --chart-color-6: #74b9ff;
+    --chart-color-7: #a29bfe;
+    --chart-color-8: #55efc4;
+    --chart-color-9: #fab1a0;
+    --chart-color-10: #81ecec;
+}
+
+
+/* 图表卡片阴影效果增强 */
+
+.chart-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at top right, rgba(255, 79, 118, 0.05), transparent 70%);
+    pointer-events: none;
+}
+
+
+/* 给图表卡片增加漂亮的边框光效 */
+
+.chart-card:hover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    box-shadow: inset 0 0 0 1px rgba(255, 79, 118, 0.2);
+    pointer-events: none;
+}
+
+
+/* 热力图特殊样式 */
+
+.chart-card.hotmap .chart {
+    padding: 10px;
 }

@@ -63,10 +63,10 @@ function createOverlayWindow() {
 
     monitor.then((monitor) => {
         console.log('当前显示器信息:', monitor);
-        const winWidth = 300;
-        const winHeight = 300;
+        const winWidth = 360; // 增加宽度，使按键显示更加舒适
+        const winHeight = 420; // 增加高度，可同时显示更多按键
         const x = 80;
-        const y = monitor.size.height - winHeight - 80;
+        const y = monitor.size.height - winHeight - 60; // 调整位置，让窗口离底部更近一些
         const popup = new WebviewWindow('key_popup', {
             url: 'key_popup.html',
             transparent: true, // 设置为透明

@@ -19,8 +19,7 @@
             </div>
             <ul class="nav-links">
                 <li class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span> 仪表盘</li>
-                <li class="nav-item" data-page="keyStats"><span class="nav-icon">⌨️</span> 按键统计</li>
-                <li class="nav-item" data-page="appAnalysis"><span class="nav-icon">📱</span> 应用分析</li>
+                <li class="nav-item" data-page="keyAppStats"><span class="nav-icon">⌨️</span> 键盘与应用</li>
                 <li class="nav-item" data-page="healthAssessment"><span class="nav-icon">❤️</span> 健康评估</li>
                 <li class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span> 设置</li>
             </ul>
@@ -86,7 +85,7 @@
                     </div>
 
                     <div class="chart-container">
-                        <div class="chart-card">
+                        <div class="chart-card hotmap">
                             <h3>活动热力图</h3>
                             <div class="chart" id="activity-heatmap">
                                 <!-- 图表将通过JavaScript渲染 -->
@@ -96,14 +95,14 @@
                     </div>
 
                     <div class="chart-container">
-                        <div class="chart-card">
+                        <div class="chart-card line-chart">
                             <h3>按键频率趋势 <span class="info-icon" data-info="显示不同时间段内的按键活动量，反映您的键盘使用频率变化。">ⓘ</span></h3>
                             <div class="chart" id="kpm-trend-chart">
                                 <!-- 图表将通过JavaScript渲染 -->
                                 <div class="placeholder-chart">图表加载中...</div>
                             </div>
                         </div>
-                        <div class="chart-card">
+                        <div class="chart-card pie-chart">
                             <h3>按键类型分布 <span class="info-icon" data-info="显示不同类型按键的使用比例，如字母键、数字键、功能键等。">ⓘ</span></h3>
                             <div class="chart" id="key-type-chart">
                                 <!-- 图表将通过JavaScript渲染 -->
@@ -113,36 +112,33 @@
                     </div>
                 </div>
 
-                <!-- 按键统计页面 -->
-                <div class="page" id="keyStats-page">
-                    <h2>按键统计</h2>
+                <!-- 键盘与应用页面 -->
+                <div class="page" id="keyAppStats-page">
+                    <h2>键盘与应用分析</h2>
+
                     <div class="chart-container">
-                        <div class="chart-card">
+                        <div class="chart-card bar-chart">
                             <h3>最常用按键 Top 10</h3>
                             <div class="chart" id="top-keys-chart">
                                 <div class="placeholder-chart">图表加载中...</div>
                             </div>
                         </div>
-                        <div class="chart-card">
+                        <div class="chart-card bar-chart">
                             <h3>常用组合键</h3>
                             <div class="chart" id="key-combo-chart">
                                 <div class="placeholder-chart">图表加载中...</div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- 应用分析页面 -->
-                <div class="page" id="appAnalysis-page">
-                    <h2>应用分析</h2>
                     <div class="chart-container">
-                        <div class="chart-card">
+                        <div class="chart-card pie-chart">
                             <h3>应用使用时间分布</h3>
                             <div class="chart" id="app-time-chart">
                                 <div class="placeholder-chart">图表加载中...</div>
                             </div>
                         </div>
-                        <div class="chart-card">
+                        <div class="chart-card bar-chart">
                             <h3>应用按键数量排行</h3>
                             <div class="chart" id="app-keys-chart">
                                 <div class="placeholder-chart">图表加载中...</div>
