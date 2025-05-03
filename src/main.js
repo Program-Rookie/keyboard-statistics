@@ -60,12 +60,14 @@ async function createOverlayWindow() {
     // 获取保存的位置设置
     let popupX = 80;
     let popupY = -40; // 默认值：负数表示从底部计算
+    let monitorId = null; // 默认为空，使用主显示器
 
     try {
         const positionJson = await invoke('get_popup_position');
         const position = JSON.parse(positionJson);
         popupX = position.x;
         popupY = position.y;
+        monitorId = position.monitor_id;
         console.log('读取到的弹窗位置:', position);
     } catch (error) {
         console.error('获取弹窗位置失败，使用默认值:', error);
@@ -90,7 +92,11 @@ async function createOverlayWindow() {
     const x = Math.max(0, Math.min(popupX, monitor.size.width - winWidth));
     y = Math.max(0, Math.min(y, monitor.size.height - winHeight));
 
-    console.log(`最终弹窗位置: x=${x}, y=${y}`);
+    // 计算全局坐标
+    const globalX = monitor.position.x + x;
+    const globalY = monitor.position.y + y;
+
+    console.log(`最终弹窗位置: 局部坐标=(x=${x}, y=${y}), 全局坐标=(x=${globalX}, y=${globalY})`);
 
     try {
         // 创建窗口
@@ -103,8 +109,8 @@ async function createOverlayWindow() {
             resizable: true,
             width: winWidth,
             height: winHeight,
-            x: x,
-            y: y,
+            x: globalX,
+            y: globalY,
             visible: false,
             focus: false,
             theme: 'dark',
@@ -2985,10 +2991,43 @@ async function initPopupPositionSetting() {
     const positionInfo = document.getElementById('popup-position-info');
     const resetButton = document.getElementById('reset-popup-position');
     const previewArea = document.getElementById('popup-preview-area');
+    const monitorSelect = document.getElementById('monitor-select');
 
     if (!dragHandle || !positionInfo || !resetButton || !previewArea) return;
 
+    // 获取并填充显示器列表
+    try {
+        const monitorsJson = await invoke('get_all_monitors');
+        const monitors = JSON.parse(monitorsJson);
+        console.log('获取到的显示器信息:', monitors);
+
+        // 清空并填充显示器下拉列表
+        if (monitorSelect) {
+            monitorSelect.innerHTML = '';
+
+            // 添加"主显示器"选项
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '主显示器 (自动选择)';
+            monitorSelect.appendChild(defaultOption);
+
+            // 添加所有显示器
+            monitors.forEach(monitor => {
+                const option = document.createElement('option');
+                option.value = monitor.id;
+                option.textContent = `${monitor.name} (${monitor.width}×${monitor.height})`;
+                if (monitor.is_primary) {
+                    option.textContent += ' - 主显示器';
+                }
+                monitorSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('获取显示器信息失败:', error);
+    }
+
     // 获取当前保存的位置
+    let currentMonitorId = '';
     try {
         const positionJson = await invoke('get_popup_position');
         const position = JSON.parse(positionJson);
@@ -2998,6 +3037,12 @@ async function initPopupPositionSetting() {
 
         // 更新位置信息显示
         updatePositionInfo(positionInfo, position.x, position.y);
+
+        // 设置显示器选择
+        currentMonitorId = position.monitor_id || '';
+        if (monitorSelect && currentMonitorId) {
+            monitorSelect.value = currentMonitorId;
+        }
     } catch (error) {
         console.error('获取弹窗位置失败:', error);
         // 使用默认位置
@@ -3006,7 +3051,40 @@ async function initPopupPositionSetting() {
     }
 
     // 实现拖拽功能
-    implementDragging(dragHandle, positionInfo, previewArea);
+    implementDragging(dragHandle, positionInfo, previewArea, monitorSelect);
+
+    // 监听显示器选择变化
+    if (monitorSelect) {
+        monitorSelect.addEventListener('change', async() => {
+            // 获取当前位置
+            const style = window.getComputedStyle(dragHandle);
+            const x = parseInt(style.left);
+            const y = parseInt(style.top);
+
+            // 计算相对坐标
+            const containerRect = previewArea.getBoundingClientRect();
+            let savedY = y;
+
+            // 根据位置决定是否需要使用底部相对坐标
+            const bottomThreshold = containerRect.height * 0.7;
+            if (y > bottomThreshold) {
+                savedY = y - containerRect.height;
+            }
+
+            // 保存新的显示器设置和位置
+            try {
+                await invoke('set_popup_position', {
+                    x: Math.round(x),
+                    y: Math.round(savedY),
+                    monitorId: monitorSelect.value || null
+                });
+
+                console.log(`已更新弹窗位置到显示器: ${monitorSelect.value || '主显示器'}`);
+            } catch (error) {
+                console.error('保存弹窗位置失败:', error);
+            }
+        });
+    }
 
     // 重置按钮功能
     resetButton.addEventListener('click', async() => {
@@ -3017,9 +3095,18 @@ async function initPopupPositionSetting() {
         updatePreviewPosition(dragHandle, defaultX, defaultY, previewArea);
         updatePositionInfo(positionInfo, defaultX, defaultY);
 
+        // 重置显示器选择
+        if (monitorSelect) {
+            monitorSelect.value = '';
+        }
+
         // 保存到后端
         try {
-            await invoke('set_popup_position', { x: defaultX, y: defaultY });
+            await invoke('set_popup_position', {
+                x: defaultX,
+                y: defaultY,
+                monitorId: null
+            });
         } catch (error) {
             console.error('重置弹窗位置失败:', error);
             alert('重置位置失败，请重试');
@@ -3067,7 +3154,7 @@ function updatePositionInfo(element, x, y) {
 }
 
 // 实现拖拽功能
-function implementDragging(element, infoElement, container) {
+function implementDragging(element, infoElement, container, monitorSelect) {
     let isDragging = false;
     let offsetX, offsetY;
 
@@ -3107,9 +3194,6 @@ function implementDragging(element, infoElement, container) {
         element.style.left = `${newX}px`;
         element.style.top = `${newY}px`;
         element.style.bottom = 'auto'; // 清除底部定位
-
-        // 计算在真实窗口中的相对位置（模拟显示器和窗口的尺寸关系）
-        // 我们假设预览容器代表整个显示器，预览元素代表弹窗
 
         // 将Y坐标转换为需要保存的格式
         let savedY;
@@ -3154,15 +3238,19 @@ function implementDragging(element, infoElement, container) {
             savedY = y; // 使用正值，从顶部计算
         }
 
+        // 获取当前选择的显示器ID
+        const monitorId = monitorSelect ? monitorSelect.value || null : null;
+
         // 保存位置到后端
         try {
             const roundedX = Math.round(x);
             const roundedY = Math.round(savedY);
-            console.log(`保存位置: x=${roundedX}, y=${roundedY}`);
+            console.log(`保存位置: x=${roundedX}, y=${roundedY}, 显示器=${monitorId || '主显示器'}`);
 
             await invoke('set_popup_position', {
                 x: roundedX,
-                y: roundedY
+                y: roundedY,
+                monitorId: monitorId
             });
         } catch (error) {
             console.error('保存弹窗位置失败:', error);

@@ -17,6 +17,7 @@ pub struct AppConfig {
 pub struct PopupPosition {
     pub x: i32,
     pub y: i32,
+    pub monitor_id: Option<String>, // 存储显示器ID
 }
 
 impl Default for PopupPosition {
@@ -24,6 +25,7 @@ impl Default for PopupPosition {
         PopupPosition {
             x: 80,  // 默认X坐标
             y: -40, // 默认Y坐标，负值表示从底部算起
+            monitor_id: None, // 默认为空，使用主显示器
         }
     }
 }

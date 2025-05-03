@@ -462,14 +462,53 @@ fn get_popup_position(app: tauri::AppHandle) -> Result<String, String> {
     Ok(position_json)
 }
 
+// 获取所有显示器信息
+#[tauri::command]
+async fn get_all_monitors(app: tauri::AppHandle) -> Result<String, String> {
+    let window = app.get_webview_window("main").ok_or("无法获取主窗口")?;
+    
+    // 获取所有显示器
+    let monitors = window.available_monitors()
+        .map_err(|e| format!("获取显示器信息失败: {}", e))?;
+    
+    // 构建显示器信息数组
+    let monitor_info: Vec<serde_json::Value> = monitors.iter().enumerate().map(|(index, monitor)| {
+        let size = monitor.size();
+        let position = monitor.position();
+        
+        // 使用索引作为ID, 不再使用name()方法
+        let id = format!("monitor_{}", index);
+        let name = format!("显示器 {}", index + 1);
+        
+        let is_primary = monitor.position().x == 0 && monitor.position().y == 0; // 假设坐标为0,0的为主显示器
+        
+        serde_json::json!({
+            "id": id,
+            "name": name,
+            "width": size.width,
+            "height": size.height,
+            "position_x": position.x,
+            "position_y": position.y,
+            "is_primary": is_primary
+        })
+    }).collect();
+    
+    // 序列化为JSON字符串
+    let json = serde_json::to_string(&monitor_info)
+        .map_err(|e| format!("序列化显示器信息失败: {}", e))?;
+    
+    Ok(json)
+}
+
 // 设置弹窗位置
 #[tauri::command]
-fn set_popup_position(app: tauri::AppHandle, x: i32, y: i32) -> Result<(), String> {
+fn set_popup_position(app: tauri::AppHandle, x: i32, y: i32, monitor_id: Option<String>) -> Result<(), String> {
     let state = app.state::<AppState>();
     {
         let mut config = state.config_manager.get_config();
         config.popup_position.x = x;
         config.popup_position.y = y;
+        config.popup_position.monitor_id = monitor_id.clone();
     }
     
     // 保存配置
@@ -477,9 +516,33 @@ fn set_popup_position(app: tauri::AppHandle, x: i32, y: i32) -> Result<(), Strin
     
     // 获取弹窗窗口并更新位置
     if let Some(window) = app.get_webview_window("key_popup") {
-        let monitor = window.current_monitor()
-            .map_err(|e| format!("获取显示器信息失败: {}", e))?
-            .expect("无法获取当前显示器");
+        // 如果指定了显示器ID，尝试获取该显示器
+        let monitor = if let Some(id) = monitor_id {
+            // 获取所有可用显示器
+            let monitors = window.available_monitors()
+                .map_err(|e| format!("获取显示器信息失败: {}", e))?;
+            
+            // 查找匹配的显示器（根据ID前缀查找，而不是使用name()方法）
+            let monitor_index = id.strip_prefix("monitor_")
+                .and_then(|index_str| index_str.parse::<usize>().ok())
+                .and_then(|index| if index < monitors.len() { Some(index) } else { None });
+            
+            if let Some(index) = monitor_index {
+                // 找到了匹配的显示器
+                monitors.get(index).cloned()
+            } else {
+                // 没有找到匹配的显示器，使用当前显示器
+                window.current_monitor()
+                    .map_err(|e| format!("获取当前显示器失败: {}", e))?
+            }
+        } else {
+            // 没有指定显示器ID，使用当前显示器
+            window.current_monitor()
+                .map_err(|e| format!("获取显示器信息失败: {}", e))?
+        };
+        
+        // 确保找到了显示器
+        let monitor = monitor.expect("无法获取显示器");
         
         let monitor_size = monitor.size();
         println!("显示器尺寸: 宽度={}, 高度={}", monitor_size.width, monitor_size.height);
@@ -496,15 +559,28 @@ fn set_popup_position(app: tauri::AppHandle, x: i32, y: i32) -> Result<(), Strin
             y
         };
         
-        println!("设置窗口位置: x={}, y={} (原始y={})", x, actual_y, y);
+        // 获取显示器位置
+        let monitor_pos = monitor.position();
+        let global_x = monitor_pos.x + x;
+        let global_y = monitor_pos.y + actual_y;
+        
+        println!("设置窗口位置: 显示器=monitor_{}, 局部坐标=(x={}, y={}), 全局坐标=(x={}, y={})", 
+                monitor_pos.x, x, actual_y, global_x, global_y);
         
         // 确保位置不会超出屏幕边界
         let safe_x = i32::max(0, i32::min(x, monitor_size.width as i32 - window_size.width as i32));
         let safe_y = i32::max(0, i32::min(actual_y, monitor_size.height as i32 - window_size.height as i32));
         
-        // 更新窗口位置
-        window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: safe_x, y: safe_y }))
-            .map_err(|e| format!("设置窗口位置失败: {}", e))?;
+        // 计算全局安全坐标
+        let global_safe_x = monitor_pos.x + safe_x;
+        let global_safe_y = monitor_pos.y + safe_y;
+        
+        // 更新窗口位置(使用全局坐标)
+        window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { 
+            x: global_safe_x, 
+            y: global_safe_y 
+        }))
+        .map_err(|e| format!("设置窗口位置失败: {}", e))?;
     }
     
     Ok(())
@@ -557,6 +633,7 @@ fn main() {
             set_autostart,
             get_autostart_setting,
             get_popup_position,
+            get_all_monitors,
             set_popup_position,
         ])
         .on_window_event(|app, event| {
