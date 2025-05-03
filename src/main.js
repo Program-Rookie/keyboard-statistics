@@ -64,7 +64,7 @@ function createOverlayWindow() {
     monitor.then((monitor) => {
         console.log('当前显示器信息:', monitor);
         const winWidth = 380; // 增加宽度，确保内容不会被截断
-        const winHeight = 390; // 略微增加高度，避免顶部边缘漏出
+        const winHeight = 380; // 略微增加高度，避免顶部边缘漏出
         const x = 80;
         const y = monitor.size.height - winHeight - 40; // 让窗口更贴近底部，减少可能的空白
         const popup = new WebviewWindow('key_popup', {
@@ -254,14 +254,6 @@ function initButtonEvents() {
         assessHealthBtn.addEventListener('click', performHealthAssessment);
     }
 
-    // AI分析按钮
-    const aiAnalysisBtn = document.getElementById('ai-analysis-btn');
-    if (aiAnalysisBtn) {
-        aiAnalysisBtn.addEventListener('click', () => {
-            showModal('ai-modal');
-        });
-    }
-
     // 主题切换按钮
     const themeButtons = document.querySelectorAll('.theme-btn');
     themeButtons.forEach(btn => {
@@ -312,6 +304,9 @@ function initButtonEvents() {
             }
         });
     }
+
+    // 加载健康配置
+    loadHealthProfile();
 }
 
 // 初始化模态框
@@ -467,7 +462,8 @@ async function toggleRecording() {
 }
 
 // 执行健康评估
-function performHealthAssessment() {
+async function performHealthAssessment() {
+    // 获取用户输入
     const occupationSelect = document.getElementById('occupation');
     const dailyHoursSelect = document.getElementById('daily-hours');
     const hasBreaksCheckbox = document.getElementById('has-breaks');
@@ -480,97 +476,252 @@ function performHealthAssessment() {
 
     // 表单验证
     if (!occupation || !dailyHours) {
-        alert('请填写所有必填项');
+        alert('请填写职业类型和每日电脑使用时长');
         return;
     }
 
-    // 获取用户输入的健康信息
-    const userInfo = {
-        occupation,
-        dailyHours,
-        keyboardType: 'standard', // 可以增加键盘类型选择
-        hasBreaks,
-        hasWristSupport
-    };
+    try {
+        // 显示加载状态
+        const assessHealthBtn = document.getElementById('assess-health');
+        const originalText = assessHealthBtn.textContent;
+        assessHealthBtn.textContent = '评估中...';
+        assessHealthBtn.disabled = true;
 
-    // 调用获取最新统计数据的API
-    readyToSendMessage('get_latest_stats').then(stats => {
+        // 保存用户健康配置
+        await invoke('save_health_profile', {
+            occupation,
+            dailyHours,
+            hasBreaks,
+            hasSupport: hasWristSupport // 修正参数名为hasSupport
+        });
+
+        // 获取健康风险指标
+        const metricsJson = await invoke('get_health_risk_metrics', {
+            timeRange: currentTimeFilter
+        });
+
+        const metrics = JSON.parse(metricsJson);
+        console.log('健康风险指标:', metrics);
+
         // 计算健康风险
-        const result = calculateHealthRisk(stats, userInfo);
+        const riskResult = calculateHealthRisk(metrics, {
+            occupation,
+            dailyHours,
+            hasBreaks,
+            hasWristSupport
+        });
 
         // 显示结果
-        displayHealthAssessment(result);
-    }).catch(error => {
-        console.error('获取统计数据失败:', error);
-        alert('无法获取统计数据，请稍后再试');
-    });
+        displayHealthAssessment(riskResult);
+
+        // 恢复按钮状态
+        assessHealthBtn.textContent = originalText;
+        assessHealthBtn.disabled = false;
+    } catch (error) {
+        console.error('健康评估失败:', error);
+        alert('健康评估失败，请稍后再试');
+
+        // 恢复按钮状态
+        const assessHealthBtn = document.getElementById('assess-health');
+        if (assessHealthBtn) {
+            assessHealthBtn.textContent = '评估健康风险';
+            assessHealthBtn.disabled = false;
+        }
+    }
 }
 
 // 计算健康风险
-function calculateHealthRisk(stats, userInfo) {
-    const { occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport } = userInfo;
+function calculateHealthRisk(metrics, userProfile) {
+    // 定义风险阈值
+    const THRESHOLD_DAILY_KEYS_HIGH = 30000; // 日均按键量高阈值
+    const THRESHOLD_AVG_KPM_HIGH = 60; // 平均KPM高阈值
+    const THRESHOLD_CONTINUOUS_SESSION_LONG = 60 * 60; // 长会话阈值（秒）
+    const THRESHOLD_FREQUENT_LONG_SESSIONS = 2; // 频繁长会话阈值（每天）
+
+    // 风险标志
+    let riskFlags = {
+        highKeyVolume: metrics.daily_avg_keys > THRESHOLD_DAILY_KEYS_HIGH,
+        highKPM: metrics.avg_kpm > THRESHOLD_AVG_KPM_HIGH,
+        longSessions: metrics.long_sessions_count > 0,
+        frequentLongSessions: metrics.long_sessions_per_day > THRESHOLD_FREQUENT_LONG_SESSIONS
+    };
+
+    // 计算触发的风险标志数量
+    const flagCount = Object.values(riskFlags).filter(flag => flag).length;
 
     // 基础风险评估
-    let riskLevel = getRiskLevel(occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport);
-    let description = getHealthDescription(occupation, dailyHours, keyboardType, hasBreaks, hasWristSupport);
+    let riskLevel = getRiskLevel(flagCount, userProfile);
+    let description = getHealthDescription(flagCount, riskFlags, userProfile);
 
-    // 添加基于统计数据的具体评估
-    let insights = [];
-    let recommendations = [];
-
-    // 获取用户的每日按键量
-    const dailyKeyPresses = stats.total_presses / Math.max(stats.days_recorded, 1);
-
-    // 评估每日按键量
-    if (dailyKeyPresses > 20000) {
-        insights.push("您的每日按键量非常高，处于重度使用级别。");
-        recommendations.push("考虑使用快捷键和文本扩展工具减少按键次数。");
-        if (riskLevel !== "高") riskLevel = "中高";
-    } else if (dailyKeyPresses > 10000) {
-        insights.push("您的每日按键量较高，处于中度使用级别。");
-        recommendations.push("保持良好姿势，每小时休息5-10分钟。");
-    } else if (dailyKeyPresses > 5000) {
-        insights.push("您的每日按键量适中，处于正常使用级别。");
-    } else {
-        insights.push("您的每日按键量较低，处于轻度使用级别。");
-    }
-
-    // 评估按键类型分布
-    if (stats.key_categories) {
-        const modifierPercent = (stats.key_categories.modifier || 0) / stats.total_presses * 100;
-        if (modifierPercent > 15) {
-            insights.push("您使用修饰键(Shift, Ctrl等)的比例较高，可能增加手指疲劳风险。");
-            recommendations.push("尝试使用更简单的快捷键组合，避免频繁使用组合键。");
-        }
-    }
-
-    // 评估退格使用情况
-    if (stats.backspace_ratio > 0.1) {
-        insights.push(`您的退格键使用率(${(stats.backspace_ratio * 100).toFixed(1)}%)较高，可能表示打字出错较多。`);
-        recommendations.push("放慢打字速度，提高准确性。考虑使用拼写检查工具。");
-    }
-
-    // 增加标准建议
-    if (!hasBreaks) {
-        recommendations.push("每使用电脑1小时，至少休息5-10分钟，站起来活动一下。");
-    }
-
-    if (!hasWristSupport) {
-        recommendations.push("考虑使用腕托或人体工学键盘，减轻手腕压力。");
-    }
-
-    recommendations.push("保持正确坐姿，显示器高度与眼睛平齐，颈部挺直。");
-
-    if (dailyHours === "7-9" || dailyHours === "10+") {
-        recommendations.push("尝试20-20-20法则：每20分钟，看20英尺外的物体20秒，缓解眼睛疲劳。");
-    }
+    // 添加洞察和建议
+    let insights = generateInsights(metrics, riskFlags, userProfile);
+    let recommendations = generateRecommendations(metrics, riskFlags, userProfile, riskLevel);
 
     return {
         riskLevel,
         description,
         insights,
-        recommendations
+        recommendations,
+        metrics // 添加指标数据用于调试
     };
+}
+
+// 获取风险等级
+function getRiskLevel(flagCount, userProfile) {
+    const { dailyHours, hasBreaks, hasWristSupport } = userProfile;
+
+    // 基础风险评估
+    if (flagCount >= 3) {
+        return '高';
+    } else if (flagCount >= 1) {
+        // 中等风险，但如果用户每日使用时间长，且没有休息/支持，则升级为高风险
+        if (dailyHours === '10+' && !hasBreaks && !hasWristSupport) {
+            return '高';
+        }
+        return '中';
+    } else {
+        // 基础低风险，但如果用户每日使用时间长且没有休息，则升级为中等风险
+        if (dailyHours === '10+' && !hasBreaks) {
+            return '中';
+        }
+        return '低';
+    }
+}
+
+// 获取健康描述
+function getHealthDescription(flagCount, riskFlags, userProfile) {
+    const { occupation, dailyHours, hasBreaks } = userProfile;
+
+    // 根据风险标志生成描述
+    if (flagCount >= 3) {
+        return `您的键盘使用模式显示多项潜在风险因素，包括${riskFlags.highKeyVolume ? '高按键量' : ''}${riskFlags.highKPM ? '、高强度打字' : ''}${riskFlags.longSessions ? '、长时间连续输入' : ''}。作为${getOccupationDescription(occupation)}，建议您重视规律休息和人体工学设置。`;
+    } else if (flagCount >= 1) {
+        let riskFactors = [];
+        if (riskFlags.highKeyVolume) riskFactors.push('较高的按键量');
+        if (riskFlags.highKPM) riskFactors.push('较高的打字速度');
+        if (riskFlags.longSessions) riskFactors.push('较长的连续输入时段');
+        if (riskFlags.frequentLongSessions) riskFactors.push('频繁的长时间会话');
+
+        return `数据显示您的键盘使用存在${riskFactors.join('和')}。考虑到您${getDailyHoursDescription(dailyHours)}，建议增加短暂休息的频率，并注意打字姿势。`;
+    } else {
+        return `根据当前数据，您的键盘使用强度处于适度范围内。${!hasBreaks ? '但建议您仍应定期休息，' : ''}保持这种良好习惯将有助于预防潜在的健康问题。`;
+    }
+}
+
+// 获取职业描述
+function getOccupationDescription(occupation) {
+    switch (occupation) {
+        case 'programmer':
+            return '程序员';
+        case 'writer':
+            return '作家/编辑';
+        case 'office':
+            return '办公室职员';
+        case 'designer':
+            return '设计师';
+        case 'student':
+            return '学生';
+        default:
+            return '键盘使用者';
+    }
+}
+
+// 获取使用时长描述
+function getDailyHoursDescription(dailyHours) {
+    switch (dailyHours) {
+        case '1-3':
+            return '每日使用电脑1-3小时';
+        case '4-6':
+            return '每日中等时长使用电脑';
+        case '7-9':
+            return '每日较长时间使用电脑';
+        case '10+':
+            return '每日长时间使用电脑';
+        default:
+            return '日常使用电脑';
+    }
+}
+
+// 生成洞察
+function generateInsights(metrics, riskFlags, userProfile) {
+    let insights = [];
+
+    // 添加按键量相关洞察
+    if (metrics.daily_avg_keys > 30000) {
+        insights.push(`您的日均按键量（${Math.round(metrics.daily_avg_keys)}次）非常高，处于重度使用级别。`);
+    } else if (metrics.daily_avg_keys > 20000) {
+        insights.push(`您的日均按键量（${Math.round(metrics.daily_avg_keys)}次）较高，处于中度至重度使用级别。`);
+    } else if (metrics.daily_avg_keys > 10000) {
+        insights.push(`您的日均按键量（${Math.round(metrics.daily_avg_keys)}次）处于中度使用级别。`);
+    } else {
+        insights.push(`您的日均按键量（${Math.round(metrics.daily_avg_keys)}次）处于轻度至中度使用级别。`);
+    }
+
+    // 添加KPM相关洞察
+    if (metrics.avg_kpm > 60) {
+        insights.push(`您的平均打字速度（${Math.round(metrics.avg_kpm)} KPM）较快，这可能增加手指和手腕的压力。`);
+    } else if (metrics.avg_kpm > 40) {
+        insights.push(`您的平均打字速度（${Math.round(metrics.avg_kpm)} KPM）处于中等水平。`);
+    }
+
+    // 添加会话相关洞察
+    if (metrics.long_sessions_count > 0) {
+        insights.push(`在分析期间，您有${metrics.long_sessions_count}次长时间连续打字会话（超过1小时无明显休息），这可能增加重复性劳损的风险。`);
+    }
+
+    if (metrics.avg_session_duration_seconds > 1800) { // 超过30分钟
+        insights.push(`您的平均连续打字时长为${Math.round(metrics.avg_session_duration_seconds/60)}分钟，建议每20-30分钟短暂休息。`);
+    }
+
+    // 根据用户配置添加洞察
+    if (userProfile.dailyHours === '10+' && !userProfile.hasBreaks) {
+        insights.push('长时间使用电脑而不定期休息，会显著增加颈部、肩部和手腕疲劳的风险。');
+    }
+
+    return insights;
+}
+
+// 生成建议
+function generateRecommendations(metrics, riskFlags, userProfile, riskLevel) {
+    let recommendations = [];
+
+    // 基础建议
+    recommendations.push('保持正确的坐姿，显示器高度与眼睛平齐，手腕保持中立位置。');
+
+    // 添加休息相关建议
+    if (!userProfile.hasBreaks || riskFlags.longSessions) {
+        recommendations.push('采用20-20-20法则：每使用电脑20分钟，看20英尺（约6米）外的物体20秒，缓解眼睛疲劳。');
+        recommendations.push('每小时至少休息5-10分钟，起身活动、伸展肢体或做简单眼部运动。');
+    }
+
+    // 按键量相关建议
+    if (riskFlags.highKeyVolume) {
+        recommendations.push('考虑使用文本扩展工具或自动化脚本，减少重复性打字任务。');
+    }
+
+    // KPM相关建议
+    if (riskFlags.highKPM) {
+        recommendations.push('适当放慢打字速度，注重质量而非速度，减少手指和手腕的快速重复动作。');
+    }
+
+    // 设备相关建议
+    if (!userProfile.hasWristSupport) {
+        recommendations.push('使用护腕垫或人体工学键盘，减轻手腕压力，保持自然放松的打字姿势。');
+    }
+
+    // 专业建议
+    if (riskFlags.frequentLongSessions || riskLevel === '高') {
+        recommendations.push('如果经常感到手部、手腕或颈部不适，考虑咨询职业健康专家或物理治疗师。');
+    }
+
+    // 根据职业添加特定建议
+    if (userProfile.occupation === 'programmer') {
+        recommendations.push('程序员特别建议：利用IDE快捷键减少重复性操作，考虑使用代码片段工具减少打字量。');
+    } else if (userProfile.occupation === 'writer') {
+        recommendations.push('写作人员特别建议：使用语音转文字软件交替使用，减轻连续打字的负担。');
+    }
+
+    return recommendations;
 }
 
 // 显示健康评估结果
@@ -634,11 +785,6 @@ function displayHealthAssessment(result) {
 
     // 显示结果
     healthResultContainer.classList.remove('hidden');
-
-    // 平滑滚动到结果
-    setTimeout(() => {
-        healthResultContainer.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
 }
 
 // 切换主题
@@ -2726,5 +2872,39 @@ async function deleteData() {
             confirmDeleteBtn.textContent = '删除';
             confirmDeleteBtn.disabled = false;
         }
+    }
+}
+
+// 加载健康配置
+async function loadHealthProfile() {
+    try {
+        const profileJson = await invoke('get_health_profile');
+        if (profileJson) {
+            const profile = JSON.parse(profileJson);
+
+            // 填充表单
+            const occupationSelect = document.getElementById('occupation');
+            const dailyHoursSelect = document.getElementById('daily-hours');
+            const hasBreaksCheckbox = document.getElementById('has-breaks');
+            const hasSupportCheckbox = document.getElementById('has-support');
+
+            if (occupationSelect && profile.occupation) {
+                occupationSelect.value = profile.occupation;
+            }
+
+            if (dailyHoursSelect && profile.daily_hours) {
+                dailyHoursSelect.value = profile.daily_hours;
+            }
+
+            if (hasBreaksCheckbox && profile.has_breaks !== undefined) {
+                hasBreaksCheckbox.checked = profile.has_breaks;
+            }
+
+            if (hasSupportCheckbox && profile.has_support !== undefined) {
+                hasSupportCheckbox.checked = profile.has_support;
+            }
+        }
+    } catch (error) {
+        console.error('加载健康配置失败:', error);
     }
 }

@@ -310,6 +310,7 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
     gap: 24px;
+    margin-top: 10px;
     margin-bottom: 35px;
 }
 
@@ -540,6 +541,7 @@ body {
     border-radius: 12px;
     padding: 25px;
     box-shadow: 0 4px 8px var(--shadow-color);
+    margin-top: 10px;
     margin-bottom: 30px;
     transition: all 0.3s;
 }
@@ -643,45 +645,117 @@ input:focus {
 }
 
 .disclaimer {
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-left: 4px solid #ff4f76;
+    color: #666;
     font-size: 0.85rem;
-    color: var(--secondary-color);
+    line-height: 1.6;
+    border-radius: 0 4px 4px 0;
+}
+
+.disclaimer strong {
+    color: #ff4f76;
+}
+
+.note {
+    margin-top: 15px;
     margin-bottom: 20px;
-    padding-bottom: 15px;
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+}
+
+.insights-section,
+.recommendations-section {
+    margin-top: 25px;
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 5px 0;
+}
+
+.insights-section h4,
+.recommendations-section h4 {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f0;
+    color: #555;
+    font-size: 1.1rem;
+    padding-left: 15px;
+}
+
+.insight-item {
+    margin: 0 15px 15px;
+    padding: 12px 15px;
+    background-color: #f8f9fa;
+    border-left: 4px solid #4a6cf7;
+    border-radius: 0 4px 4px 0;
+    color: #555;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.recommendation-item {
+    display: flex;
+    padding: 12px 15px;
+    margin: 0 15px 10px;
     border-bottom: 1px solid #f0f0f0;
 }
 
+.recommendation-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.recommendation-icon {
+    color: #28a745;
+    font-size: 1.1rem;
+    margin-right: 12px;
+    line-height: 1.4;
+}
+
+.recommendation-text {
+    color: #555;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
 .risk-level {
-    margin-bottom: 20px;
     display: flex;
     align-items: center;
+    margin-bottom: 20px;
 }
 
 .risk-label {
-    font-weight: 500;
     font-size: 1.1rem;
     margin-right: 10px;
+    font-weight: 500;
 }
 
 .risk-value {
+    font-size: 1rem;
     font-weight: bold;
-    padding: 5px 12px;
-    border-radius: 20px;
+    padding: 6px 14px;
+    border-radius: 30px;
+    background-color: #28a745;
     color: white;
-    background-color: var(--success-color);
 }
 
 .risk-value.medium {
-    background-color: var(--warning-color);
+    background-color: #ffc107;
+    color: #212529;
 }
 
 .risk-value.high {
-    background-color: var(--danger-color);
+    background-color: #dc3545;
 }
 
 .risk-description {
     line-height: 1.6;
-    margin-bottom: 20px;
     color: #555;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f0f0f0;
 }
 
 .ai-analysis {
@@ -1314,4 +1388,14 @@ button {
 
 .chart-card.hotmap .chart {
     padding: 10px;
+}
+
+
+/* 健康评估页面样式优化 */
+
+.form-description {
+    margin-bottom: 20px;
+    color: #666;
+    line-height: 1.5;
+    font-size: 0.95rem;
 }

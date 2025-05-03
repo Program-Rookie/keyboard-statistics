@@ -18,6 +18,8 @@ let lastKeyCode = '';
 let comboTimer = null;
 // 最大同时显示的弹窗数量
 const MAX_POPUPS = 6;
+// 按键计数器（用于透明度计算）
+let keyCounter = 0;
 
 // 定义字母键、功能键和修饰键
 const letterKeys = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
@@ -39,7 +41,42 @@ function getKeyClass(keyCode) {
     return '';
 }
 
+// 计算透明度函数
+function calculateOpacity(count) {
+    // 随着按键计数增加，透明度从1.0逐渐降低到0.4
+    // 使用非线性衰减确保体验更好
+    const baseOpacity = 1.0;
+    const minOpacity = 0.4;
+    const decayFactor = 0.1; // 控制衰减速度
+
+    return Math.max(minOpacity, baseOpacity - Math.log1p(count * decayFactor) * 0.25);
+}
+
+// 更新所有弹窗透明度
+function updateAllPopupsOpacity() {
+    const popups = popupContainer.querySelectorAll('.popup');
+    const count = popups.length;
+
+    popups.forEach((popup, index) => {
+        // 新弹出的按键透明度保持较高，较早的按键透明度降低
+        const positionFactor = 1 - (index / count) * 0.3; // 位置影响因子
+        const baseOpacity = calculateOpacity(keyCounter);
+        const finalOpacity = baseOpacity * positionFactor;
+
+        // 设置透明度
+        popup.style.opacity = finalOpacity;
+    });
+}
+
 listen('key-pressed', event => {
+    // 更新按键计数器
+    keyCounter++;
+
+    // 定期减少计数器，以便长期后透明度恢复
+    setTimeout(() => {
+        keyCounter = Math.max(0, keyCounter - 1);
+    }, 5000);
+
     // 更新最后按键时间
     lastKeyPressTime = Date.now();
 
@@ -97,6 +134,10 @@ listen('key-pressed', event => {
     popup.className = `popup show pressed ${keyClass} ${comboClass}`;
     popup.textContent = keyCode;
 
+    // 计算并设置初始透明度
+    const initialOpacity = calculateOpacity(keyCounter);
+    popup.style.opacity = initialOpacity;
+
     // 添加爆炸效果当打击速度很快时
     if (Date.now() - lastKeyPressTime < 100) {
         popup.classList.add('key-press');
@@ -113,6 +154,9 @@ listen('key-pressed', event => {
 
     popupContainer.appendChild(popup);
 
+    // 更新所有弹窗的透明度
+    updateAllPopupsOpacity();
+
     // 动画：pressed -> show
     setTimeout(() => {
         popup.classList.remove('pressed');
@@ -127,6 +171,8 @@ listen('key-pressed', event => {
             // 检查元素是否仍然存在于DOM中
             if (popup.parentNode === popupContainer) {
                 popupContainer.removeChild(popup);
+                // 更新所有弹窗的透明度
+                updateAllPopupsOpacity();
             }
 
             // 如果没有popup了，设置窗口隐藏计时器
@@ -144,6 +190,8 @@ listen('key-pressed', event => {
                                 window.hide();
                                 isWindowVisible = false;
                                 hideWindowTimer = null;
+                                // 重置按键计数器
+                                keyCounter = 0;
                             }
                         });
                     }
@@ -159,6 +207,10 @@ function checkWindowVisibility() {
         if (window) {
             window.isVisible().then((visible) => {
                 isWindowVisible = visible;
+                if (!visible) {
+                    // 窗口隐藏时重置按键计数器
+                    keyCounter = 0;
+                }
             });
         }
     });
@@ -168,4 +220,4 @@ function checkWindowVisibility() {
 checkWindowVisibility();
 
 // 添加调试代码，确认脚本已加载
-console.log('key_popup.js 已加载，小红书风格动画优化版');
+console.log('key_popup.js 已加载，小红书风格动画优化版（带透明度渐变）');

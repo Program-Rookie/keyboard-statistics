@@ -18,6 +18,7 @@ use crate::keyboard::KeyboardMonitor;
 use crate::config::ConfigManager;
 use tauri_plugin_dialog::DialogExt;
 use tauri::Emitter;
+use serde_json;
 
 // 定义get_key_stats函数
 #[tauri::command]
@@ -62,12 +63,29 @@ async fn export_data(app: tauri::AppHandle, format: &str, range: &str, type_str:
     };
     
     // 导出数据
-    let content = match format {
-        "json" => database::export_data_as_json(&conn, start_time, end_time)
-            .map_err(|e| format!("导出JSON数据失败: {}", e))?,
-        "csv" => database::export_data_as_csv(&conn, start_time, end_time)
-            .map_err(|e| format!("导出CSV数据失败: {}", e))?,
-        _ => return Err("不支持的导出格式".to_string()),
+    // 根据类型导出不同的数据
+    let content = match type_str {
+        "summary" => {
+            // 导出统计摘要
+            match format {
+                "json" => database::export_summary_as_json(&conn, start_time, end_time)
+                    .map_err(|e| format!("导出JSON摘要数据失败: {}", e))?,
+                "csv" => database::export_summary_as_csv(&conn, start_time, end_time)
+                    .map_err(|e| format!("导出CSV摘要数据失败: {}", e))?,
+                _ => return Err("不支持的导出格式".to_string()),
+            }
+        },
+        "raw" => {
+            // 导出原始按键数据
+            match format {
+                "json" => database::export_data_as_json(&conn, start_time, end_time)
+                    .map_err(|e| format!("导出JSON原始数据失败: {}", e))?,
+                "csv" => database::export_data_as_csv(&conn, start_time, end_time)
+                    .map_err(|e| format!("导出CSV原始数据失败: {}", e))?,
+                _ => return Err("不支持的导出格式".to_string()),
+            }
+        },
+        _ => return Err("不支持的数据类型".to_string()),
     };
     
     // 构造文件名
@@ -297,6 +315,98 @@ async fn open_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+// 获取健康评估指标
+#[tauri::command]
+async fn get_health_risk_metrics(app: tauri::AppHandle, time_range: &str) -> Result<String, String> {
+    let app_dir = app.path().app_data_dir()
+        .map_err(|e| format!("无法获取应用数据目录: {}", e))?;
+    
+    let db_path = app_dir.join("keyboard_events.db");
+    let db_path_str = db_path.to_str()
+        .ok_or_else(|| "无法将路径转换为字符串".to_string())?;
+    
+    let conn = database::init_db(db_path_str)
+        .map_err(|e| format!("数据库连接失败: {}", e))?;
+    
+    // 计算时间范围
+    let now = Local::now();
+    let (start_time, end_time) = match time_range {
+        "today" => {
+            // 获取今天凌晨零点
+            let today = now.date_naive().and_hms_opt(0, 0, 0)
+                .unwrap_or_else(|| now.naive_local());
+            let start = Local.from_local_datetime(&today).single()
+                .unwrap_or(now);
+            (start, now)
+        },
+        "week" => (now - Duration::days(7), now),
+        "month" => (now - Duration::days(30), now),
+        "all" => (now - Duration::days(365), now),
+        _ => return Err("无效的时间范围".to_string()),
+    };
+    
+    // 计算健康风险指标
+    let metrics = database::calculate_health_risk_metrics(&conn, start_time, end_time)
+        .map_err(|e| format!("计算健康风险指标失败: {}", e))?;
+    
+    // 将指标转换为JSON字符串
+    let json = serde_json::to_string(&metrics)
+        .map_err(|e| format!("序列化指标失败: {}", e))?;
+    
+    Ok(json)
+}
+
+// 保存用户健康配置
+#[tauri::command]
+async fn save_health_profile(
+    app: tauri::AppHandle, 
+    occupation: &str, 
+    daily_hours: &str, 
+    has_breaks: bool, 
+    has_support: bool
+) -> Result<(), String> {
+    let config_path = app.path().app_config_dir()
+        .map_err(|e| format!("无法获取应用配置目录: {}", e))?
+        .join("health_profile.json");
+    
+    // 创建配置对象
+    let mut profile = serde_json::Map::new();
+    profile.insert("occupation".to_string(), serde_json::Value::String(occupation.to_string()));
+    profile.insert("daily_hours".to_string(), serde_json::Value::String(daily_hours.to_string()));
+    profile.insert("has_breaks".to_string(), serde_json::Value::Bool(has_breaks));
+    profile.insert("has_support".to_string(), serde_json::Value::Bool(has_support));
+    profile.insert("updated_at".to_string(), serde_json::Value::String(Local::now().to_rfc3339()));
+    
+    // 将配置写入文件
+    let json = serde_json::to_string_pretty(&serde_json::Value::Object(profile))
+        .map_err(|e| format!("序列化配置失败: {}", e))?;
+    
+    std::fs::write(&config_path, json)
+        .map_err(|e| format!("保存配置文件失败: {}", e))?;
+    
+    Ok(())
+}
+
+// 获取用户健康配置
+#[tauri::command]
+async fn get_health_profile(app: tauri::AppHandle) -> Result<String, String> {
+    let config_path = app.path().app_config_dir()
+        .map_err(|e| format!("无法获取应用配置目录: {}", e))?
+        .join("health_profile.json");
+    
+    // 检查文件是否存在
+    if !config_path.exists() {
+        // 返回空对象
+        return Ok(r#"{"occupation":"","daily_hours":"","has_breaks":false,"has_support":false}"#.to_string());
+    }
+    
+    // 读取配置文件
+    let json = std::fs::read_to_string(&config_path)
+        .map_err(|e| format!("读取配置文件失败: {}", e))?;
+    
+    Ok(json)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -338,6 +448,9 @@ fn main() {
             clear_all_data,
             get_database_path,
             open_folder,
+            get_health_risk_metrics,
+            save_health_profile,
+            get_health_profile,
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

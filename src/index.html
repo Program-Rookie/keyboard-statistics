@@ -151,10 +151,10 @@
                 <div class="page" id="healthAssessment-page">
                     <h2>健康评估</h2>
                     <div class="health-form">
-                        <h3>健康风险评估表</h3>
-                        <p class="form-description">请填写以下信息，我们将为您提供健康风险评估</p>
+                        <h3>健康风险评估</h3>
+                        <p class="form-description">请填写以下信息，我们将基于您的键盘使用数据和这些可选信息进行健康风险评估</p>
                         <div class="form-group">
-                            <label for="occupation">职业类型</label>
+                            <label for="occupation">职业/主要电脑用途</label>
                             <select id="occupation">
                                 <option value="">请选择...</option>
                                 <option value="programmer">程序员</option>
@@ -162,6 +162,8 @@
                                 <option value="office">办公室职员</option>
                                 <option value="designer">设计师</option>
                                 <option value="student">学生</option>
+                                <option value="data">数据录入</option>
+                                <option value="gamer">游戏玩家</option>
                                 <option value="other">其他</option>
                             </select>
                         </div>
@@ -169,10 +171,11 @@
                             <label for="daily-hours">平均每日电脑使用时长</label>
                             <select id="daily-hours">
                                 <option value="">请选择...</option>
-                                <option value="1-3">1-3小时</option>
+                                <option value="1-3">少于2小时</option>
+                                <option value="1-3">2-4小时</option>
                                 <option value="4-6">4-6小时</option>
-                                <option value="7-9">7-9小时</option>
-                                <option value="10+">10小时以上</option>
+                                <option value="7-9">6-8小时</option>
+                                <option value="10+">超过8小时</option>
                             </select>
                         </div>
                         <div class="form-group checkbox-wrapper">
@@ -187,13 +190,13 @@
                                 <span class="checkmark"></span>
                             </label>
                         </div>
+                        <p class="note">注意：以上信息为可选填写，不影响基础评估，但会提供更个性化的建议</p>
                         <button id="assess-health" class="primary-btn">评估健康风险</button>
                     </div>
 
                     <div class="health-result hidden">
                         <div class="result-card">
                             <h3>健康风险评估</h3>
-                            <p class="disclaimer">注意：此评估不构成医疗建议，仅作参考。如有健康问题，请咨询专业医师。</p>
                             <div class="risk-level">
                                 <span class="risk-label">风险等级:</span>
                                 <span class="risk-value">低</span>
@@ -213,13 +216,11 @@
                                     <!-- 动态添加建议 -->
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="ai-analysis">
-                        <h3>AI深度分析</h3>
-                        <p>想要获取更深入的健康分析和个性化建议？</p>
-                        <button id="ai-analysis-btn" class="primary-btn">使用AI获取深度分析报告</button>
+                            <p class="disclaimer">
+                                <strong>重要提示：</strong>本评估仅为基于统计数据的通用性提示，旨在提高健康意识，不能替代专业的医疗诊断或建议。如果您感到任何不适，请咨询医生或专业人士。
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -318,7 +319,6 @@
                     <select id="export-type">
               <option value="summary">统计摘要</option>
               <option value="raw">原始按键数据</option>
-              <option value="both">两者都包含</option>
             </select>
                 </div>
             </div>
@@ -358,28 +358,6 @@
         </div>
     </div>
 
-    <div class="modal" id="ai-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>AI分析指南</h3>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p>要获取AI深度分析报告，请按照以下步骤操作：</p>
-                <ol>
-                    <li>使用"导出数据"功能导出您的按键统计数据</li>
-                    <li>访问我们的AI分析网站：<a href="#" target="_blank">ai-analysis.example.com</a></li>
-                    <li>上传您导出的数据文件</li>
-                    <li>等待AI生成个性化分析报告</li>
-                </ol>
-                <p class="note">注意：数据上传至外部网站是您的自愿行为。请查看该网站的隐私政策了解数据处理方式。</p>
-            </div>
-            <div class="modal-footer">
-                <button id="close-ai-modal" class="secondary-btn">关闭</button>
-                <button id="go-to-export" class="primary-btn">前往导出数据</button>
-            </div>
-        </div>
-    </div>
 </body>
 
 </html>
