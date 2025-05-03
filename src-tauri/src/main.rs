@@ -449,6 +449,67 @@ fn get_autostart_setting(app: tauri::AppHandle) -> bool {
     config.autostart_enabled
 }
 
+// 获取弹窗位置
+#[tauri::command]
+fn get_popup_position(app: tauri::AppHandle) -> Result<String, String> {
+    let state = app.state::<AppState>();
+    let config = state.config_manager.get_config();
+    
+    // 将位置信息序列化为JSON字符串
+    let position_json = serde_json::to_string(&config.popup_position)
+        .map_err(|e| format!("序列化弹窗位置失败: {}", e))?;
+    
+    Ok(position_json)
+}
+
+// 设置弹窗位置
+#[tauri::command]
+fn set_popup_position(app: tauri::AppHandle, x: i32, y: i32) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    {
+        let mut config = state.config_manager.get_config();
+        config.popup_position.x = x;
+        config.popup_position.y = y;
+    }
+    
+    // 保存配置
+    state.save_config()?;
+    
+    // 获取弹窗窗口并更新位置
+    if let Some(window) = app.get_webview_window("key_popup") {
+        let monitor = window.current_monitor()
+            .map_err(|e| format!("获取显示器信息失败: {}", e))?
+            .expect("无法获取当前显示器");
+        
+        let monitor_size = monitor.size();
+        println!("显示器尺寸: 宽度={}, 高度={}", monitor_size.width, monitor_size.height);
+        
+        let window_size = window.inner_size()
+            .map_err(|e| format!("获取窗口尺寸失败: {}", e))?;
+        println!("窗口尺寸: 宽度={}, 高度={}", window_size.width, window_size.height);
+        
+        // 计算实际位置：如果y是负数，则从底部计算位置
+        let actual_y = if y < 0 {
+            // 从显示器底部向上计算
+            (monitor_size.height as i32) + y - (window_size.height as i32)
+        } else {
+            y
+        };
+        
+        println!("设置窗口位置: x={}, y={} (原始y={})", x, actual_y, y);
+        
+        // 确保位置不会超出屏幕边界
+        let safe_x = i32::max(0, i32::min(x, monitor_size.width as i32 - window_size.width as i32));
+        let safe_y = i32::max(0, i32::min(actual_y, monitor_size.height as i32 - window_size.height as i32));
+        
+        // 更新窗口位置
+        window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: safe_x, y: safe_y }))
+            .map_err(|e| format!("设置窗口位置失败: {}", e))?;
+    }
+    
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -495,6 +556,8 @@ fn main() {
             get_health_profile,
             set_autostart,
             get_autostart_setting,
+            get_popup_position,
+            set_popup_position,
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

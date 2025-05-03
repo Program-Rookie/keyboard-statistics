@@ -1407,3 +1407,95 @@ button {
     line-height: 1.5;
     font-size: 0.95rem;
 }
+
+
+/* 弹窗位置设置样式 */
+
+.popup-position-setting {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 10px;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.popup-preview-container {
+    width: 100%;
+    height: 280px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    margin: 15px 0;
+    position: relative;
+    overflow: hidden;
+    border: 1px dashed #ccc;
+}
+
+#popup-preview-area {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+#popup-preview-handle {
+    position: absolute;
+    left: 80px;
+    bottom: 50px;
+    cursor: move;
+    padding: 10px;
+    user-select: none;
+}
+
+.handle-icon {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+    color: var(--primary-color);
+    cursor: move;
+}
+
+.popup-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+}
+
+.popup-preview-item {
+    width: 150px;
+    height: 50px;
+    background: linear-gradient(145deg, #ff4f76, #ff758c);
+    color: #ffffff;
+    border-radius: 20px;
+    font-size: 24px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px rgba(255, 79, 118, 0.3);
+}
+
+.popup-position-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#popup-position-info {
+    font-size: 14px;
+    color: var(--secondary-color);
+    font-family: monospace;
+}
+
+
+/* 拖拽时的样式 */
+
+.dragging {
+    opacity: 0.8;
+}
+
+.dragging .popup-preview-item {
+    box-shadow: 0 6px 16px rgba(255, 79, 118, 0.5);
+}

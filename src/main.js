@@ -48,28 +48,55 @@ window.addEventListener("DOMContentLoaded", async() => {
 
     // 初始化overlay窗口
     createOverlayWindow();
+
+    // 初始化弹窗位置设置
+    await initPopupPositionSetting();
 });
 
 // 初始化overlay窗口
-function createOverlayWindow() {
+async function createOverlayWindow() {
     console.log('尝试创建overlay窗口');
-    // 如果key_popup不存在则创建 有bug所以先屏蔽
-    // const existingPopup = WebviewWindow.getByLabel('key_popup');
-    // if (existingPopup) {
-    //     console.log('key_popup 窗口已存在');
-    //     return;
-    // }
-    const monitor = currentMonitor();
 
-    monitor.then((monitor) => {
-        console.log('当前显示器信息:', monitor);
-        const winWidth = 380; // 增加宽度，确保内容不会被截断
-        const winHeight = 380; // 略微增加高度，避免顶部边缘漏出
-        const x = 80;
-        const y = monitor.size.height - winHeight - 40; // 让窗口更贴近底部，减少可能的空白
+    // 获取保存的位置设置
+    let popupX = 80;
+    let popupY = -40; // 默认值：负数表示从底部计算
+
+    try {
+        const positionJson = await invoke('get_popup_position');
+        const position = JSON.parse(positionJson);
+        popupX = position.x;
+        popupY = position.y;
+        console.log('读取到的弹窗位置:', position);
+    } catch (error) {
+        console.error('获取弹窗位置失败，使用默认值:', error);
+    }
+
+    // 获取当前显示器信息
+    const monitor = await currentMonitor();
+    console.log('当前显示器信息:', monitor);
+
+    const winWidth = 380; // 窗口宽度
+    const winHeight = 380; // 窗口高度
+
+    // 计算y坐标，如果是负数则从显示器底部计算
+    let y = popupY;
+    if (popupY < 0) {
+        // 从底部计算位置时，需要考虑窗口自身高度
+        y = monitor.size.height + popupY - winHeight;
+        console.log(`计算从底部的位置: ${monitor.size.height} + ${popupY} - ${winHeight} = ${y}`);
+    }
+
+    // 确保位置不会超出屏幕
+    const x = Math.max(0, Math.min(popupX, monitor.size.width - winWidth));
+    y = Math.max(0, Math.min(y, monitor.size.height - winHeight));
+
+    console.log(`最终弹窗位置: x=${x}, y=${y}`);
+
+    try {
+        // 创建窗口
         const popup = new WebviewWindow('key_popup', {
             url: 'key_popup.html',
-            transparent: true, // 设置为透明
+            transparent: true,
             decorations: false,
             alwaysOnTop: true,
             skipTaskbar: true,
@@ -79,23 +106,21 @@ function createOverlayWindow() {
             x: x,
             y: y,
             visible: false,
-            focus: false, // 不获取焦点
+            focus: false,
             theme: 'dark',
             shadow: false,
             acceptFirstMouse: false
         });
+
         popup.once('tauri://created', function() {
-            // webview successfully created
             console.log('webview 已成功创建');
             popup.setBackgroundColor({ r: 0, g: 0, b: 0, a: 0 });
             // 设置窗口忽略鼠标事件，允许点击穿透
             popup.setIgnoreCursorEvents(true);
         });
-        // popup.once('tauri://error', function(e) {
-        //     // an error happened creating the webview
-        //     console.error('创建 webview 时发生错误:', e);
-        // });
-    });
+    } catch (error) {
+        console.error('创建webview窗口失败:', error);
+    }
 }
 
 // 初始化退出确认设置
@@ -2951,4 +2976,204 @@ async function loadHealthProfile() {
     } catch (error) {
         console.error('加载健康配置失败:', error);
     }
+}
+
+// 初始化弹窗位置设置
+async function initPopupPositionSetting() {
+    // 获取拖拽元素和信息显示元素
+    const dragHandle = document.getElementById('popup-preview-handle');
+    const positionInfo = document.getElementById('popup-position-info');
+    const resetButton = document.getElementById('reset-popup-position');
+    const previewArea = document.getElementById('popup-preview-area');
+
+    if (!dragHandle || !positionInfo || !resetButton || !previewArea) return;
+
+    // 获取当前保存的位置
+    try {
+        const positionJson = await invoke('get_popup_position');
+        const position = JSON.parse(positionJson);
+
+        // 初始化拖拽手柄位置
+        updatePreviewPosition(dragHandle, position.x, position.y, previewArea);
+
+        // 更新位置信息显示
+        updatePositionInfo(positionInfo, position.x, position.y);
+    } catch (error) {
+        console.error('获取弹窗位置失败:', error);
+        // 使用默认位置
+        updatePreviewPosition(dragHandle, 80, -40, previewArea);
+        updatePositionInfo(positionInfo, 80, -40);
+    }
+
+    // 实现拖拽功能
+    implementDragging(dragHandle, positionInfo, previewArea);
+
+    // 重置按钮功能
+    resetButton.addEventListener('click', async() => {
+        const defaultX = 80;
+        const defaultY = -40;
+
+        // 更新预览
+        updatePreviewPosition(dragHandle, defaultX, defaultY, previewArea);
+        updatePositionInfo(positionInfo, defaultX, defaultY);
+
+        // 保存到后端
+        try {
+            await invoke('set_popup_position', { x: defaultX, y: defaultY });
+        } catch (error) {
+            console.error('重置弹窗位置失败:', error);
+            alert('重置位置失败，请重试');
+        }
+    });
+}
+
+// 更新预览位置
+function updatePreviewPosition(element, x, y, container) {
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+
+    console.log(`更新预览位置: 容器高度=${containerRect.height}, 元素高度=${elementRect.height}, x=${x}, y=${y}`);
+
+    // 处理负Y值（表示从底部开始计算位置）
+    let previewY;
+    if (y < 0) {
+        // 转换为从容器顶部计算的位置
+        // 注意: y是负数，所以加上它等于减去其绝对值
+        previewY = containerRect.height + y;
+        console.log(`预览从底部计算: ${containerRect.height} + ${y} = ${previewY}`);
+    } else {
+        previewY = y;
+        console.log(`预览从顶部计算: y = ${previewY}`);
+    }
+
+    // 防止拖出边界
+    const maxX = containerRect.width - elementRect.width;
+    const maxY = containerRect.height - elementRect.height;
+
+    const safeX = Math.max(0, Math.min(x, maxX));
+    const safeY = Math.max(0, Math.min(previewY, maxY));
+
+    console.log(`最终预览位置: x=${safeX}, y=${safeY}`);
+
+    // 更新位置
+    element.style.left = `${safeX}px`;
+    element.style.top = `${safeY}px`;
+    element.style.bottom = 'auto'; // 清除底部定位
+}
+
+// 更新位置信息显示
+function updatePositionInfo(element, x, y) {
+    element.textContent = `X: ${x}, Y: ${y}`;
+}
+
+// 实现拖拽功能
+function implementDragging(element, infoElement, container) {
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    // 获取鼠标按下时的初始位置
+    element.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        element.classList.add('dragging');
+
+        // 计算鼠标与元素边缘的偏移量
+        const rect = element.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+
+        // 防止文本选择等默认行为干扰拖动
+        e.preventDefault();
+    });
+
+    // 鼠标移动时更新位置
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+
+        // 计算相对于容器的位置
+        let newX = e.clientX - containerRect.left - offsetX;
+        let newY = e.clientY - containerRect.top - offsetY;
+
+        // 防止拖出边界
+        const maxX = containerRect.width - elementRect.width;
+        const maxY = containerRect.height - elementRect.height;
+
+        newX = Math.max(0, Math.min(newX, maxX));
+        newY = Math.max(0, Math.min(newY, maxY));
+
+        // 更新预览位置
+        element.style.left = `${newX}px`;
+        element.style.top = `${newY}px`;
+        element.style.bottom = 'auto'; // 清除底部定位
+
+        // 计算在真实窗口中的相对位置（模拟显示器和窗口的尺寸关系）
+        // 我们假设预览容器代表整个显示器，预览元素代表弹窗
+
+        // 将Y坐标转换为需要保存的格式
+        let savedY;
+        const bottomThreshold = containerRect.height * 0.7; // 70%高度以下使用负值表示
+
+        if (newY > bottomThreshold) {
+            // 使用负值，表示从底部计算的距离
+            savedY = newY - containerRect.height;
+            console.log(`拖拽位置: 从底部计算 y=${savedY} (原始y=${newY})`);
+        } else {
+            // 使用正值，表示从顶部计算的距离
+            savedY = newY;
+            console.log(`拖拽位置: 从顶部计算 y=${savedY}`);
+        }
+
+        // 更新位置信息显示
+        updatePositionInfo(infoElement, Math.round(newX), Math.round(savedY));
+    });
+
+    // 鼠标释放时保存位置
+    document.addEventListener('mouseup', async() => {
+        if (!isDragging) return;
+
+        isDragging = false;
+        element.classList.remove('dragging');
+
+        // 获取最终位置
+        const style = window.getComputedStyle(element);
+        const x = parseInt(style.left);
+        const y = parseInt(style.top);
+
+        // 计算屏幕坐标
+        const containerRect = container.getBoundingClientRect();
+
+        // 确定是否使用负Y值
+        let savedY;
+        const bottomThreshold = containerRect.height * 0.7; // 70%高度以下使用负值
+
+        if (y > bottomThreshold) {
+            savedY = y - containerRect.height; // 使用负值，从底部计算
+        } else {
+            savedY = y; // 使用正值，从顶部计算
+        }
+
+        // 保存位置到后端
+        try {
+            const roundedX = Math.round(x);
+            const roundedY = Math.round(savedY);
+            console.log(`保存位置: x=${roundedX}, y=${roundedY}`);
+
+            await invoke('set_popup_position', {
+                x: roundedX,
+                y: roundedY
+            });
+        } catch (error) {
+            console.error('保存弹窗位置失败:', error);
+        }
+    });
+
+    // 鼠标离开窗口时也结束拖拽
+    document.addEventListener('mouseleave', () => {
+        if (isDragging) {
+            isDragging = false;
+            element.classList.remove('dragging');
+        }
+    });
 }

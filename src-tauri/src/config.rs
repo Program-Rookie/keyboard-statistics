@@ -10,6 +10,22 @@ pub struct AppConfig {
     pub minimize_on_close: bool,
     pub recording_enabled: bool,
     pub autostart_enabled: bool,
+    pub popup_position: PopupPosition,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PopupPosition {
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Default for PopupPosition {
+    fn default() -> Self {
+        PopupPosition {
+            x: 80,  // 默认X坐标
+            y: -40, // 默认Y坐标，负值表示从底部算起
+        }
+    }
 }
 
 impl Default for AppConfig {
@@ -19,6 +35,7 @@ impl Default for AppConfig {
             minimize_on_close: true,
             recording_enabled: true,
             autostart_enabled: false,
+            popup_position: PopupPosition::default(),
         }
     }
 }
