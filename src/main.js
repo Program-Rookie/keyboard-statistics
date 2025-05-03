@@ -278,7 +278,7 @@ function initButtonEvents() {
             const theme = btn.getAttribute('data-theme');
 
             // 切换主题
-            toggleTheme(theme === 'dark');
+            toggleTheme(theme);
         });
     });
 
@@ -796,16 +796,15 @@ function displayHealthAssessment(result) {
 }
 
 // 切换主题
-function toggleTheme(isDark) {
-    isDarkTheme = isDark;
+function toggleTheme(theme) {
 
-    if (isDark) {
-        document.documentElement.style.setProperty('--primary-color', '#6c8cff');
-        document.documentElement.style.setProperty('--light-color', '#2d2d2d');
-        document.documentElement.style.setProperty('--dark-color', '#f8f9fa');
-        document.documentElement.style.setProperty('--border-color', '#444');
-        document.documentElement.style.setProperty('background-color', '#1a1a1a');
-        document.documentElement.style.setProperty('color', '#f0f0f0');
+    if (theme === "xiaohongshu") {
+        document.documentElement.style.setProperty('--primary-color', '#ff4f76');
+        document.documentElement.style.setProperty('--light-color', '#f8f9fa');
+        document.documentElement.style.setProperty('--dark-color', '#343a40');
+        document.documentElement.style.setProperty('--border-color', '#dee2e6');
+        document.documentElement.style.setProperty('background-color', '#f6f6f6');
+        document.documentElement.style.setProperty('color', '#333');
     } else {
         document.documentElement.style.setProperty('--primary-color', '#4a6cf7');
         document.documentElement.style.setProperty('--light-color', '#f8f9fa');
