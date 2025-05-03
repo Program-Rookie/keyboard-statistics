@@ -41,17 +41,22 @@ function getKeyClass(keyCode) {
     return '';
 }
 
-// 平滑隐藏窗口函数
+// 平滑隐藏窗口函数 - 仅在有弹窗时使用
 function smoothHideWindow() {
-    // 先将所有弹窗透明度降低
+    // 获取所有当前显示的弹窗
     const popups = popupContainer.querySelectorAll('.popup');
-    popups.forEach(popup => {
-        popup.style.transition = "opacity 0.4s ease, transform 0.5s ease";
-        popup.style.opacity = "0";
-        // 添加轻微下落效果
-        const currentTransform = popup.style.transform || '';
-        popup.style.transform = currentTransform + ' translateY(8px)';
-    });
+
+    // 如果没有弹窗，直接隐藏窗口
+    if (popups.length === 0) {
+        currentWindow.then((window) => {
+            if (window) {
+                window.hide();
+                isWindowVisible = false;
+                keyCounter = 0;
+            }
+        });
+        return;
+    }
 
     // 延迟后隐藏窗口
     setTimeout(() => {
@@ -63,7 +68,12 @@ function smoothHideWindow() {
 
                 // 清空弹窗容器
                 while (popupContainer.firstChild) {
-                    popupContainer.removeChild(popupContainer.firstChild);
+                    try {
+                        popupContainer.removeChild(popupContainer.firstChild);
+                    } catch (e) {
+                        console.error('清空弹窗容器失败:', e);
+                        break; // 避免无限循环
+                    }
                 }
             }
         });
@@ -202,35 +212,37 @@ listen('key-pressed', event => {
         setTimeout(() => {
             // 检查元素是否仍然存在于DOM中
             if (popup.parentNode === popupContainer) {
-                // 使用更平滑的方式移除元素
-                popup.style.opacity = '0';
-                // 淡出动画后再移除元素
-                setTimeout(() => {
-                    if (popup.parentNode === popupContainer) {
-                        popupContainer.removeChild(popup);
-                        // 更新所有弹窗的透明度
-                        updateAllPopupsOpacity();
-                    }
-                }, 150); // 增加短暂延迟，确保淡出效果完成
+                try {
+                    popupContainer.removeChild(popup);
+                    // 更新剩余弹窗的透明度
+                    updateAllPopupsOpacity();
+                } catch (e) {
+                    console.error('移除弹窗元素失败:', e);
+                }
             }
 
             // 如果没有popup了，设置窗口隐藏计时器
             if (popupContainer.children.length === 0) {
                 // 根据最后按键时间计算窗口消失的延迟
-                // 使用更优雅的淡出效果
                 const timeSinceLastKey = Date.now() - lastKeyPressTime;
-                const hideDelay = timeSinceLastKey > 800 ? 100 : Math.min(300, Math.max(100, 300 - popupContainer.children.length * 30));
 
                 hideWindowTimer = setTimeout(() => {
                     // 再次检查是否仍然没有子元素
                     if (popupContainer.children.length === 0) {
-                        smoothHideWindow();
+                        // 没有popup，直接隐藏窗口，无需使用平滑隐藏效果
+                        currentWindow.then((window) => {
+                            if (window) {
+                                window.hide();
+                                isWindowVisible = false;
+                                keyCounter = 0;
+                            }
+                        });
                         hideWindowTimer = null;
                     }
-                }, hideDelay);
+                }, 50);
             }
-        }, 400); // 动画结束后的等待时间，稍微缩短以提升响应性
-    }, 1200); // 保持popup显示时间
+        }, 300); // 增加动画结束后的等待时间，确保CSS动画完成
+    }, 1200); // 增加popup显示时间，提升用户体验
 });
 
 // 添加窗口状态检查函数
@@ -242,7 +254,28 @@ function checkWindowVisibility() {
                 if (!visible) {
                     // 窗口隐藏时重置按键计数器
                     keyCounter = 0;
+
+                    // 清空弹窗容器
+                    while (popupContainer.firstChild) {
+                        try {
+                            popupContainer.removeChild(popupContainer.firstChild);
+                        } catch (e) {
+                            console.error('隐藏时清空弹窗容器失败:', e);
+                            break;
+                        }
+                    }
                 }
+            });
+
+            // 添加窗口隐藏事件监听
+            window.listen('tauri://close-requested', () => {
+                isWindowVisible = false;
+                keyCounter = 0;
+            });
+
+            // 添加窗口显示事件监听
+            window.listen('tauri://focus', () => {
+                isWindowVisible = true;
             });
         }
     });
