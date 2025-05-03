@@ -425,12 +425,17 @@ function createExitConfirmModal() {
         appWindow.show();
     });
 
+    const exitConfirmToggle = document.getElementById('exit-confirm-toggle');
+
     minimizeBtn.addEventListener('click', async() => {
         if (noConfirmCheckbox.checked) {
             // 更新退出确认设置
             await invoke('update_exit_confirm', { showConfirm: false });
             // 保存最小化行为
             await invoke('update_close_behavior', { minimize: true });
+            if (exitConfirmToggle) {
+                exitConfirmToggle.checked = false;
+            }
         }
         hideModal('exit-confirm-modal');
         appWindow.hide();
@@ -442,6 +447,9 @@ function createExitConfirmModal() {
             await invoke('update_exit_confirm', { showConfirm: false });
             // 保存退出行为
             await invoke('update_close_behavior', { minimize: false });
+            if (exitConfirmToggle) {
+                exitConfirmToggle.checked = false;
+            }
         }
         await invoke('exit_app');
     });
