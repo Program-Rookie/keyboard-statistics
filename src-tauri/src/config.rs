@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub show_exit_confirm: bool,
     pub minimize_on_close: bool,
     pub recording_enabled: bool,
+    pub autostart_enabled: bool,
 }
 
 impl Default for AppConfig {
@@ -17,6 +18,7 @@ impl Default for AppConfig {
             show_exit_confirm: true,
             minimize_on_close: true,
             recording_enabled: true,
+            autostart_enabled: false,
         }
     }
 }

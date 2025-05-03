@@ -402,6 +402,53 @@ async fn get_health_profile(app: tauri::AppHandle) -> Result<String, String> {
     Ok(json)
 }
 
+// 添加开机自启动设置
+#[tauri::command]
+async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    {
+        let mut config = state.config_manager.get_config();
+        config.autostart_enabled = enabled;
+    }
+    state.save_config()?;
+    
+    // 在系统中实际设置自启动
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let app_path = std::env::current_exe()
+            .map_err(|e| format!("获取应用路径失败: {}", e))?;
+        
+        let app_path_str = app_path.to_string_lossy().to_string();
+        
+        if enabled {
+            // 创建启动项
+            Command::new("reg")
+                .args(["add", "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", 
+                       "/v", "KeyboardStatistics", "/t", "REG_SZ", "/d", &app_path_str, "/f"])
+                .output()
+                .map_err(|e| format!("设置自启动失败: {}", e))?;
+        } else {
+            // 删除启动项
+            Command::new("reg")
+                .args(["delete", "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", 
+                       "/v", "KeyboardStatistics", "/f"])
+                .output()
+                .map_err(|e| format!("取消自启动失败: {}", e))?;
+        }
+    }
+    
+    Ok(())
+}
+
+// 获取自启动设置状态
+#[tauri::command]
+fn get_autostart_setting(app: tauri::AppHandle) -> bool {
+    let state = app.state::<AppState>();
+    let config = state.config_manager.get_config();
+    config.autostart_enabled
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -446,6 +493,8 @@ fn main() {
             get_health_risk_metrics,
             save_health_profile,
             get_health_profile,
+            set_autostart,
+            get_autostart_setting,
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -456,6 +505,7 @@ fn main() {
                 let state = app_handle.state::<AppState>();
                 let config = state.config_manager.get_config();
                 let show_confirm = config.show_exit_confirm;
+                println!("{:?}", show_confirm);
                 let minimize_on_close = config.minimize_on_close;
                 
                 if show_confirm {

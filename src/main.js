@@ -30,6 +30,9 @@ window.addEventListener("DOMContentLoaded", async() => {
     // 初始化退出确认设置
     await initExitConfirmSetting();
 
+    // 初始化自启动设置
+    await initAutostartSetting();
+
     // 创建退出确认模态框
     createExitConfirmModal();
 
@@ -42,9 +45,6 @@ window.addEventListener("DOMContentLoaded", async() => {
 
     // 加载数据（从后端获取）
     await loadData();
-
-    // 设置定时刷新KPM数据
-    setupAutoRefresh();
 
     // 初始化overlay窗口
     createOverlayWindow();
@@ -101,20 +101,56 @@ function createOverlayWindow() {
 // 初始化退出确认设置
 async function initExitConfirmSetting() {
     try {
-        // 从 Rust 后端获取设置
-        showExitConfirm = await invoke('get_exit_confirm_setting');
+        const showExitConfirm = await invoke('get_exit_confirm_setting');
+        const exitConfirmToggle = document.getElementById('exit-confirm-toggle');
+        if (exitConfirmToggle) {
+            exitConfirmToggle.checked = showExitConfirm;
+        }
     } catch (error) {
         console.error('获取退出确认设置失败:', error);
     }
 }
 
+// 初始化自启动设置
+async function initAutostartSetting() {
+    try {
+        const autostartEnabled = await invoke('get_autostart_setting');
+        const autostartToggle = document.getElementById('autostart-toggle');
+        if (autostartToggle) {
+            autostartToggle.checked = autostartEnabled;
+        }
+    } catch (error) {
+        console.error('获取自启动设置失败:', error);
+    }
+}
+
 // 更新退出确认设置
-async function updateExitConfirmSetting(showConfirm) {
+async function updateExitConfirmSetting(event) {
+    const showConfirm = event.target.checked;
+
     try {
         await invoke('update_exit_confirm', { showConfirm });
-        showExitConfirm = showConfirm;
     } catch (error) {
         console.error('更新退出确认设置失败:', error);
+        alert('设置失败，请重试。');
+
+        // 恢复原状态
+        event.target.checked = !showConfirm;
+    }
+}
+
+// 更新自启动设置
+async function updateAutostartSetting(event) {
+    const isEnabled = event.target.checked;
+
+    try {
+        await invoke('set_autostart', { enabled: isEnabled });
+    } catch (error) {
+        console.error('设置自启动失败:', error);
+        alert('设置自启动失败，请重试。');
+
+        // 恢复原状态
+        event.target.checked = !isEnabled;
     }
 }
 
@@ -234,11 +270,30 @@ function initButtonEvents() {
         confirmExportBtn.addEventListener('click', exportData);
     }
 
+    // 取消导出按钮
+    const cancelExportBtn = document.getElementById('cancel-export');
+    if (cancelExportBtn) {
+        cancelExportBtn.addEventListener('click', () => {
+            hideModal('export-modal');
+        });
+    }
+
     // 删除数据按钮
     const deleteBtn = document.getElementById('delete-data');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', () => {
             showModal('delete-modal');
+        });
+    }
+
+    // 确认删除复选框
+    const confirmDeleteCheckbox = document.getElementById('confirm-delete-checkbox');
+    if (confirmDeleteCheckbox) {
+        confirmDeleteCheckbox.addEventListener('change', function() {
+            const confirmDeleteBtn = document.getElementById('confirm-delete');
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.disabled = !this.checked;
+            }
         });
     }
 
@@ -248,12 +303,38 @@ function initButtonEvents() {
         confirmDeleteBtn.addEventListener('click', deleteData);
     }
 
-    // 确认删除复选框
-    const confirmDeleteCheckbox = document.getElementById('confirm-delete-checkbox');
-    if (confirmDeleteCheckbox) {
-        confirmDeleteCheckbox.addEventListener('change', (e) => {
-            if (confirmDeleteBtn) {
-                confirmDeleteBtn.disabled = !e.target.checked;
+    // 取消删除按钮
+    const cancelDeleteBtn = document.getElementById('cancel-delete');
+    if (cancelDeleteBtn) {
+        cancelDeleteBtn.addEventListener('click', () => {
+            hideModal('delete-modal');
+        });
+    }
+
+    // 退出确认开关
+    const exitConfirmToggle = document.getElementById('exit-confirm-toggle');
+    if (exitConfirmToggle) {
+        exitConfirmToggle.addEventListener('change', updateExitConfirmSetting);
+    }
+
+    // 自启动开关
+    const autostartToggle = document.getElementById('autostart-toggle');
+    if (autostartToggle) {
+        autostartToggle.addEventListener('change', updateAutostartSetting);
+    }
+
+    // 打开数据文件夹按钮
+    const openDataFolderBtn = document.getElementById('open-data-folder');
+    if (openDataFolderBtn) {
+        openDataFolderBtn.addEventListener('click', async() => {
+            try {
+                const dbPath = await invoke('get_database_path');
+                // 获取数据库目录路径（去掉文件名）
+                const folderPath = dbPath.substring(0, dbPath.lastIndexOf('\\'));
+                await invoke('open_folder', { path: folderPath });
+            } catch (error) {
+                console.error('打开文件夹失败:', error);
+                alert('无法打开文件夹，请确认应用权限。');
             }
         });
     }
@@ -263,60 +344,6 @@ function initButtonEvents() {
     if (assessHealthBtn) {
         assessHealthBtn.addEventListener('click', performHealthAssessment);
     }
-
-    // 主题切换按钮
-    const themeButtons = document.querySelectorAll('.theme-btn');
-    themeButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            // 移除所有活动状态
-            themeButtons.forEach(b => b.classList.remove('active'));
-
-            // 添加当前活动状态
-            btn.classList.add('active');
-
-            // 获取主题
-            const theme = btn.getAttribute('data-theme');
-
-            // 切换主题
-            toggleTheme(theme);
-        });
-    });
-
-    // 自启动切换
-    const autostartToggle = document.getElementById('autostart-toggle');
-    if (autostartToggle) {
-        autostartToggle.addEventListener('change', toggleAutostart);
-    }
-
-    // 退出确认切换
-    const exitConfirmToggle = document.getElementById('exit-confirm-toggle');
-    if (exitConfirmToggle) {
-        exitConfirmToggle.addEventListener('change', (e) => {
-            updateExitConfirmSetting(e.target.checked);
-        });
-    }
-
-    // 打开数据文件夹按钮
-    const openDataFolderBtn = document.getElementById('open-data-folder');
-    if (openDataFolderBtn) {
-        openDataFolderBtn.addEventListener('click', async() => {
-            try {
-                const path = await invoke('get_database_path');
-                if (path) {
-                    // 获取数据库目录路径（去掉文件名）
-                    const folderPath = path.substring(0, path.lastIndexOf('\\'));
-                    // 使用系统默认的文件管理器打开该目录
-                    await invoke('open_folder', { path: folderPath });
-                }
-            } catch (error) {
-                console.error('打开数据文件夹失败:', error);
-                alert('无法打开数据文件夹，请确认应用权限');
-            }
-        });
-    }
-
-    // 加载健康配置
-    loadHealthProfile();
 }
 
 // 初始化模态框
@@ -398,23 +425,25 @@ function createExitConfirmModal() {
         appWindow.show();
     });
 
-    minimizeBtn.addEventListener('click', () => {
+    minimizeBtn.addEventListener('click', async() => {
         if (noConfirmCheckbox.checked) {
-            updateExitConfirmSetting(false);
+            // 更新退出确认设置
+            await invoke('update_exit_confirm', { showConfirm: false });
             // 保存最小化行为
-            invoke('update_close_behavior', { minimize: true });
+            await invoke('update_close_behavior', { minimize: true });
         }
         hideModal('exit-confirm-modal');
         appWindow.hide();
     });
 
-    exitBtn.addEventListener('click', () => {
+    exitBtn.addEventListener('click', async() => {
         if (noConfirmCheckbox.checked) {
-            updateExitConfirmSetting(false);
+            // 更新退出确认设置
+            await invoke('update_exit_confirm', { showConfirm: false });
             // 保存退出行为
-            invoke('update_close_behavior', { minimize: false });
+            await invoke('update_close_behavior', { minimize: false });
         }
-        invoke('exit_app');
+        await invoke('exit_app');
     });
 }
 
