@@ -317,7 +317,7 @@ async fn open_folder(path: String) -> Result<(), String> {
 
 // 获取健康评估指标
 #[tauri::command]
-async fn get_health_risk_metrics(app: tauri::AppHandle, time_range: &str) -> Result<String, String> {
+async fn get_health_risk_metrics(app: tauri::AppHandle) -> Result<String, String> {
     let app_dir = app.path().app_data_dir()
         .map_err(|e| format!("无法获取应用数据目录: {}", e))?;
     
@@ -328,22 +328,17 @@ async fn get_health_risk_metrics(app: tauri::AppHandle, time_range: &str) -> Res
     let conn = database::init_db(db_path_str)
         .map_err(|e| format!("数据库连接失败: {}", e))?;
     
-    // 计算时间范围
-    let now = Local::now();
-    let (start_time, end_time) = match time_range {
-        "today" => {
-            // 获取今天凌晨零点
-            let today = now.date_naive().and_hms_opt(0, 0, 0)
-                .unwrap_or_else(|| now.naive_local());
-            let start = Local.from_local_datetime(&today).single()
-                .unwrap_or(now);
-            (start, now)
-        },
-        "week" => (now - Duration::days(7), now),
-        "month" => (now - Duration::days(30), now),
-        "all" => (now - Duration::days(365), now),
-        _ => return Err("无效的时间范围".to_string()),
+    // 获取用户首次按键时间
+    let first_event_time = database::get_first_event_time(&conn)
+        .map_err(|e| format!("获取首次按键时间失败: {}", e))?;
+    
+    // 如果没有任何按键记录，使用一个默认的起始时间（30天前）
+    let start_time = match first_event_time {
+        Some(time) => time,
+        None => Local::now() - Duration::days(30)
     };
+    
+    let end_time = Local::now();
     
     // 计算健康风险指标
     let metrics = database::calculate_health_risk_metrics(&conn, start_time, end_time)

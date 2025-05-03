@@ -611,11 +611,14 @@ input:focus {
 .health-result {
     margin-bottom: 30px;
     transition: all 0.5s;
+    width: 100%;
+    overflow: hidden;
 }
 
 .health-result.hidden {
     display: none;
     opacity: 0;
+    height: 0;
 }
 
 .result-card {
@@ -625,6 +628,8 @@ input:focus {
     box-shadow: 0 4px 8px var(--shadow-color);
     transition: all 0.3s;
     animation: fadeIn 0.5s ease-in-out;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 @keyframes fadeIn {
@@ -697,6 +702,7 @@ input:focus {
 
 .recommendation-item {
     display: flex;
+    align-items: flex-start;
     padding: 12px 15px;
     margin: 0 15px 10px;
     border-bottom: 1px solid #f0f0f0;
@@ -712,12 +718,14 @@ input:focus {
     font-size: 1.1rem;
     margin-right: 12px;
     line-height: 1.4;
+    flex-shrink: 0;
 }
 
 .recommendation-text {
     color: #555;
     line-height: 1.5;
     font-size: 0.95rem;
+    flex: 1;
 }
 
 .risk-level {

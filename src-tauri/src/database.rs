@@ -563,7 +563,7 @@ pub fn calculate_health_risk_metrics(
     let sessions = identify_continuous_typing_sessions(conn, start_time.clone(), end_time.clone(), 300)?;
     
     // 计算长时间会话
-    let long_sessions_threshold = 60 * 60; // 1小时连续输入定义为长会话（秒）
+    let long_sessions_threshold = 60 * 60; // 60分钟连续输入定义为长会话（秒）
     let long_sessions: Vec<_> = sessions.iter()
         .filter(|(_, _, duration)| *duration >= long_sessions_threshold)
         .collect();
@@ -606,4 +606,31 @@ pub fn calculate_health_risk_metrics(
     metrics.insert("long_sessions_per_day".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(long_sessions_per_day).unwrap_or(serde_json::Number::from(0))));
     
     Ok(serde_json::Value::Object(metrics))
+}
+
+// 新增：获取最早的按键事件时间
+pub fn get_first_event_time(conn: &Connection) -> Result<Option<DateTime<Local>>> {
+    // 检查表是否为空
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM keyboard_events",
+        [],
+        |row| row.get(0)
+    )?;
+    
+    if count == 0 {
+        return Ok(None); // 表为空，返回None
+    }
+    
+    // 查询最早的时间戳
+    let timestamp_str: String = conn.query_row(
+        "SELECT timestamp FROM keyboard_events ORDER BY timestamp ASC LIMIT 1",
+        [],
+        |row| row.get(0)
+    )?;
+    
+    // 将时间戳字符串转换为DateTime<Local>
+    match DateTime::parse_from_rfc3339(&timestamp_str) {
+        Ok(dt) => Ok(Some(dt.with_timezone(&Local))),
+        Err(_) => Ok(None) // 无法解析时间戳，返回None
+    }
 }

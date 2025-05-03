@@ -175,6 +175,16 @@ function switchPage(pageId) {
     if (currentPageEl) {
         currentPageEl.classList.add('active');
         currentPage = pageId;
+
+        // 控制顶部日期切换控件的显示隐藏
+        const topBar = document.querySelector('.top-bar');
+        if (pageId === 'healthAssessment') {
+            // 健康评估页面隐藏顶部日期控件
+            topBar.style.display = 'none';
+        } else {
+            // 其他页面显示顶部日期控件
+            topBar.style.display = 'flex';
+        }
     }
 }
 
@@ -492,13 +502,11 @@ async function performHealthAssessment() {
             occupation,
             dailyHours,
             hasBreaks,
-            hasSupport: hasWristSupport // 修正参数名为hasSupport
+            hasSupport: hasWristSupport
         });
 
-        // 获取健康风险指标
-        const metricsJson = await invoke('get_health_risk_metrics', {
-            timeRange: currentTimeFilter
-        });
+        // 获取健康风险指标 - 不再传递时间范围参数
+        const metricsJson = await invoke('get_health_risk_metrics', {});
 
         const metrics = JSON.parse(metricsJson);
         console.log('健康风险指标:', metrics);
