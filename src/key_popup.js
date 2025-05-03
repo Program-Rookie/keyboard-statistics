@@ -41,15 +41,44 @@ function getKeyClass(keyCode) {
     return '';
 }
 
+// 平滑隐藏窗口函数
+function smoothHideWindow() {
+    // 先将所有弹窗透明度降低
+    const popups = popupContainer.querySelectorAll('.popup');
+    popups.forEach(popup => {
+        popup.style.transition = "opacity 0.4s ease, transform 0.5s ease";
+        popup.style.opacity = "0";
+        // 添加轻微下落效果
+        const currentTransform = popup.style.transform || '';
+        popup.style.transform = currentTransform + ' translateY(8px)';
+    });
+
+    // 延迟后隐藏窗口
+    setTimeout(() => {
+        currentWindow.then((window) => {
+            if (window) {
+                window.hide();
+                isWindowVisible = false;
+                keyCounter = 0;
+
+                // 清空弹窗容器
+                while (popupContainer.firstChild) {
+                    popupContainer.removeChild(popupContainer.firstChild);
+                }
+            }
+        });
+    }, 350); // 给动画留出足够时间
+}
+
 // 计算透明度函数
 function calculateOpacity(count) {
     // 随着按键计数增加，透明度从1.0逐渐降低到0.4
     // 使用非线性衰减确保体验更好
     const baseOpacity = 1.0;
-    const minOpacity = 0.4;
-    const decayFactor = 0.1; // 控制衰减速度
+    const minOpacity = 0.45; // 稍微提高最小透明度，使视觉效果更好
+    const decayFactor = 0.08; // 调整衰减速度，使变化更平滑
 
-    return Math.max(minOpacity, baseOpacity - Math.log1p(count * decayFactor) * 0.25);
+    return Math.max(minOpacity, baseOpacity - Math.log1p(count * decayFactor) * 0.22);
 }
 
 // 更新所有弹窗透明度
@@ -59,11 +88,12 @@ function updateAllPopupsOpacity() {
 
     popups.forEach((popup, index) => {
         // 新弹出的按键透明度保持较高，较早的按键透明度降低
-        const positionFactor = 1 - (index / count) * 0.3; // 位置影响因子
+        const positionFactor = 1 - (index / Math.max(count, 1)) * 0.25; // 位置影响因子，减少差异
         const baseOpacity = calculateOpacity(keyCounter);
         const finalOpacity = baseOpacity * positionFactor;
 
-        // 设置透明度
+        // 使用CSS过渡设置透明度，使变化更平滑
+        popup.style.transition = "opacity 0.25s ease";
         popup.style.opacity = finalOpacity;
     });
 }
@@ -75,6 +105,7 @@ listen('key-pressed', event => {
     // 定期减少计数器，以便长期后透明度恢复
     setTimeout(() => {
         keyCounter = Math.max(0, keyCounter - 1);
+        updateAllPopupsOpacity(); // 更新透明度
     }, 5000);
 
     // 更新最后按键时间
@@ -137,6 +168,7 @@ listen('key-pressed', event => {
     // 计算并设置初始透明度
     const initialOpacity = calculateOpacity(keyCounter);
     popup.style.opacity = initialOpacity;
+    popup.style.transition = "opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
 
     // 添加爆炸效果当打击速度很快时
     if (Date.now() - lastKeyPressTime < 100) {
@@ -170,35 +202,35 @@ listen('key-pressed', event => {
         setTimeout(() => {
             // 检查元素是否仍然存在于DOM中
             if (popup.parentNode === popupContainer) {
-                popupContainer.removeChild(popup);
-                // 更新所有弹窗的透明度
-                updateAllPopupsOpacity();
+                // 使用更平滑的方式移除元素
+                popup.style.opacity = '0';
+                // 淡出动画后再移除元素
+                setTimeout(() => {
+                    if (popup.parentNode === popupContainer) {
+                        popupContainer.removeChild(popup);
+                        // 更新所有弹窗的透明度
+                        updateAllPopupsOpacity();
+                    }
+                }, 150); // 增加短暂延迟，确保淡出效果完成
             }
 
             // 如果没有popup了，设置窗口隐藏计时器
             if (popupContainer.children.length === 0) {
                 // 根据最后按键时间计算窗口消失的延迟
-                // 如果最后按键时间超过500ms，则立即隐藏
+                // 使用更优雅的淡出效果
                 const timeSinceLastKey = Date.now() - lastKeyPressTime;
-                const hideDelay = timeSinceLastKey > 500 ? 50 : Math.min(200, Math.max(50, 200 - popupContainer.children.length * 30));
+                const hideDelay = timeSinceLastKey > 800 ? 100 : Math.min(300, Math.max(100, 300 - popupContainer.children.length * 30));
 
                 hideWindowTimer = setTimeout(() => {
                     // 再次检查是否仍然没有子元素
                     if (popupContainer.children.length === 0) {
-                        currentWindow.then((window) => {
-                            if (window) {
-                                window.hide();
-                                isWindowVisible = false;
-                                hideWindowTimer = null;
-                                // 重置按键计数器
-                                keyCounter = 0;
-                            }
-                        });
+                        smoothHideWindow();
+                        hideWindowTimer = null;
                     }
                 }, hideDelay);
             }
-        }, 500); // 增加动画结束后的等待时间以匹配新的动画
-    }, 1200); // 增加popup显示时间，提升用户体验
+        }, 400); // 动画结束后的等待时间，稍微缩短以提升响应性
+    }, 1200); // 保持popup显示时间
 });
 
 // 添加窗口状态检查函数

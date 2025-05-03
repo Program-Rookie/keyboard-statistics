@@ -90,9 +90,13 @@ impl KeyboardMonitor {
                     EventType::KeyPress(key) => {
                         let key_code = key_to_string(&key);
                         let mut keys = pressed_keys.lock().unwrap();
-                        let has_modifier = keys.iter().any(|k| matches!(k.as_str(), "Ctrl" | "Shift" | "Alt" | "Win"));
+                        let has_modifier = keys.iter().any(|k| matches!(k.as_str(), "Tab" | "Ctrl" | "Shift" | "Alt" | "Win"));
                         // 检查按键是否已存在
                         let is_new_key = keys.insert(key_code.clone());
+                        // 不是新按键，不发送事件
+                        if !is_new_key {
+                            return;
+                        }
                         if (!has_modifier) {
                             keys.clear();
                             keys.insert(key_code.clone());
@@ -119,10 +123,7 @@ impl KeyboardMonitor {
                                 println!("插入数据库失败: {:?}", e);
                             }
                         }
-                        // 不是新按键，不发送事件
-                        if !is_new_key {
-                            return;
-                        }
+                        
 
                         if let Some(handle) = &app_handle {
                             let result = handle.emit_to("key_popup", "key-pressed", KeyPressedPayload {
