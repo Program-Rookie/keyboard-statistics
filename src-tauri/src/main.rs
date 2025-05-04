@@ -45,22 +45,8 @@ async fn export_data(app: tauri::AppHandle, format: &str, range: &str, type_str:
     let conn = database::init_db(db_path_str)
         .map_err(|e| format!("数据库连接失败: {}", e))?;
     
-    // 计算时间范围
-    let now = Local::now();
-    let (start_time, end_time) = match range {
-        "today" => {
-            // 获取今天凌晨零点
-            let today = now.date_naive().and_hms_opt(0, 0, 0)
-                .unwrap_or_else(|| now.naive_local());
-            let start = Local.from_local_datetime(&today).single()
-                .unwrap_or(now);
-            (start, now)
-        },
-        "week" => (now - Duration::days(7), now),
-        "month" => (now - Duration::days(30), now),
-        "all" => (now - Duration::days(365), now),
-        _ => return Err("无效的时间范围".to_string()),
-    };
+    // 使用辅助函数获取调整后的时间范围
+    let (start_time, end_time) = keyboard_statistics_lib::get_adjusted_time_range(&conn, range)?;
     
     // 导出数据
     // 根据类型导出不同的数据
@@ -89,6 +75,7 @@ async fn export_data(app: tauri::AppHandle, format: &str, range: &str, type_str:
     };
     
     // 构造文件名
+    let now = Local::now();
     let timestamp = now.format("%Y%m%d%H%M%S").to_string();
     let file_ext = if format == "json" { "json" } else { "csv" };
     let file_name = format!("keyboard_stats_{}_{}_{}.{}", type_str, range, timestamp, file_ext);
@@ -117,22 +104,8 @@ async fn delete_data(app: tauri::AppHandle, range: &str) -> Result<String, Strin
     let mut conn = database::init_db(db_path_str)
         .map_err(|e| format!("数据库连接失败: {}", e))?;
     
-    // 计算时间范围
-    let now = Local::now();
-    let (start_time, end_time) = match range {
-        "today" => {
-            // 获取今天凌晨零点
-            let today = now.date_naive().and_hms_opt(0, 0, 0)
-                .unwrap_or_else(|| now.naive_local());
-            let start = Local.from_local_datetime(&today).single()
-                .unwrap_or(now);
-            (start, now)
-        },
-        "week" => (now - Duration::days(7), now),
-        "month" => (now - Duration::days(30), now),
-        "all" => (now - Duration::days(365), now), // 一年表示全部
-        _ => return Err("无效的时间范围".to_string()),
-    };
+    // 使用辅助函数获取调整后的时间范围
+    let (start_time, end_time) = keyboard_statistics_lib::get_adjusted_time_range(&conn, range)?;
     
     // 执行删除
     let deleted_count = database::delete_data_by_time_range(&mut conn, start_time, end_time)

@@ -85,7 +85,15 @@ impl DataAnalyzer {
 
     fn get_time_range(&self, time_range: &str) -> Result<(DateTime<Local>, DateTime<Local>), rusqlite::Error> {
         let now = Local::now();
-        let (start_time, end_time) = match time_range {
+        
+        // 获取最早的记录时间
+        let first_event_time = match crate::database::get_first_event_time(&self.conn)? {
+            Some(time) => time,
+            None => now - Duration::days(1)  // 如果没有记录，默认为昨天
+        };
+        
+        // 根据时间范围计算初始时间范围
+        let (initial_start_time, end_time) = match time_range {
             "today" => {
                 let today = now.date_naive().and_hms_opt(0, 0, 0)
                     .unwrap_or_else(|| now.naive_local());
@@ -95,10 +103,30 @@ impl DataAnalyzer {
             },
             "week" => (now - Duration::days(7), now),
             "month" => (now - Duration::days(30), now),
-            "all" => (now - Duration::days(365), now),
+            "all" => {
+                // 365天前的时间
+                let year_ago = now - Duration::days(365);
+                
+                // 取最早记录时间和365天前中的较新者作为开始时间
+                let start_time = if first_event_time > year_ago {
+                    first_event_time
+                } else {
+                    year_ago
+                };
+                
+                (start_time, now)
+            },
             _ => return Err(rusqlite::Error::InvalidQuery),
         };
-        Ok((start_time, end_time))
+        
+        // 确保开始时间不早于最早记录时间
+        let adjusted_start_time = if initial_start_time < first_event_time {
+            first_event_time
+        } else {
+            initial_start_time
+        };
+        
+        Ok((adjusted_start_time, end_time))
     }
 
     fn get_total_presses(&self, start_time: &DateTime<Local>, end_time: &DateTime<Local>) -> Result<u64, rusqlite::Error> {
