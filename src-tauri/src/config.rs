@@ -15,8 +15,8 @@ pub struct AppConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PopupPosition {
-    pub x: i32,
-    pub y: i32,
+    pub x: i32,      // X坐标，正值表示从左侧计算位置
+    pub y: i32,      // Y坐标，正值表示从顶部计算位置
     pub monitor_id: Option<String>, // 存储显示器ID
 }
 
@@ -24,7 +24,7 @@ impl Default for PopupPosition {
     fn default() -> Self {
         PopupPosition {
             x: 80,  // 默认X坐标
-            y: -40, // 默认Y坐标，负值表示从底部算起
+            y: 500, // 默认Y坐标，现在使用绝对值
             monitor_id: None, // 默认为空，使用主显示器
         }
     }
