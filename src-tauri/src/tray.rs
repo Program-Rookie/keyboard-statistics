@@ -26,7 +26,7 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
             }
             "about" => {
                 let _ = app.dialog().message(
-                    "键盘统计\n版本: 0.1.0\n作者: Program-Rookie，抖音：AI CodingZ",
+                    "keyboard-statistics\n版本: 1.0.0\n作者: Program-Rookie，抖音：AI CodingZ",
                 ).title("关于").blocking_show();
             }
             _ => println!("未知菜单项: {:?}", event.id),

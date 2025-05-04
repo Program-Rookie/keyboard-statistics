@@ -51,6 +51,9 @@ window.addEventListener("DOMContentLoaded", async() => {
 
     // 初始化弹窗位置设置
     await initPopupPositionSetting();
+
+    // 初始化主题设置
+    initThemeSettings();
 });
 
 // 初始化overlay窗口
@@ -936,7 +939,6 @@ function displayHealthAssessment(result) {
 
 // 切换主题
 function toggleTheme(theme) {
-
     if (theme === "xiaohongshu") {
         document.documentElement.style.setProperty('--primary-color', '#ff4f76');
         document.documentElement.style.setProperty('--light-color', '#f8f9fa');
@@ -945,6 +947,7 @@ function toggleTheme(theme) {
         document.documentElement.style.setProperty('background-color', '#f6f6f6');
         document.documentElement.style.setProperty('color', '#333');
     } else {
+        // 简约风格
         document.documentElement.style.setProperty('--primary-color', '#4a6cf7');
         document.documentElement.style.setProperty('--light-color', '#f8f9fa');
         document.documentElement.style.setProperty('--dark-color', '#343a40');
@@ -3380,4 +3383,42 @@ function calculateRelativeLocation(realX, realY, container, monitor) {
     // console.log(`计算相对位置: 真实坐标=(${realX}, ${realY}), 容器尺寸=${width}×${height}, 相对坐标=(${x}, ${y})`);
 
     return { x, y };
+}
+
+// 初始化主题设置
+function initThemeSettings() {
+    const themeButtons = document.querySelectorAll('.theme-btn');
+
+    // 从localStorage获取主题设置，默认为simple
+    const savedTheme = localStorage.getItem('app-theme') || 'simple';
+
+    // 应用已保存的主题
+    toggleTheme(savedTheme);
+
+    // 更新按钮状态
+    themeButtons.forEach(btn => {
+        const btnTheme = btn.getAttribute('data-theme');
+        if (btnTheme === savedTheme) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // 添加点击事件
+    themeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // 移除所有按钮的active状态
+            themeButtons.forEach(b => b.classList.remove('active'));
+            // 添加当前按钮的active状态
+            btn.classList.add('active');
+
+            // 获取主题并应用
+            const theme = btn.getAttribute('data-theme');
+            toggleTheme(theme);
+
+            // 保存选择
+            localStorage.setItem('app-theme', theme);
+        });
+    });
 }

@@ -115,7 +115,7 @@ body {
 }
 
 .status-indicator.active {
-    background-color: #ff4f76;
+    background-color: var(--primary-color);
     animation: pulse 2s infinite;
 }
 
