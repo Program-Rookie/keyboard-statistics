@@ -58,8 +58,8 @@ async function createOverlayWindow() {
     console.log('尝试创建overlay窗口');
 
     // 获取保存的位置设置
-    let popupX = 80;
-    let popupY = 500; // 现在只使用正值
+    let popupX = null;
+    let popupY = null; // 现在只使用正值
     let monitorId = null; // 默认为空，使用主显示器
 
     try {
@@ -106,6 +106,10 @@ async function createOverlayWindow() {
     const winWidth = idealSize.width;
     const winHeight = idealSize.height;
 
+    if (!popupX || !popupY) {
+        popupX = 80;
+        popupY = targetMonitor.height * 0.85;
+    }
     // 确保位置不会超出屏幕
     const safeX = Math.max(0, Math.min(popupX, targetMonitor.width - winWidth));
     const safeY = Math.max(0, Math.min(popupY, targetMonitor.height - winHeight));
@@ -3122,12 +3126,13 @@ async function initPopupPositionSetting() {
     } catch (error) {
         console.error('获取弹窗位置失败:', error);
         // 使用默认位置
-        updatePreviewPosition(dragHandle, 80, 500, previewContainer, selectedMonitor);
-        updatePositionInfo(positionInfo, 80, 500);
+        const height = selectedMonitor.height * 0.85;
+        updatePreviewPosition(dragHandle, 80, height, previewContainer, selectedMonitor);
+        updatePositionInfo(positionInfo, 80, height);
     }
 
     // 实现拖拽功能
-    implementDragging(dragHandle, positionInfo, previewContainer, monitorSelect, selectedMonitor);
+    implementDragging(dragHandle, positionInfo, previewContainer, monitorSelect, monitors);
 
     // 监听显示器选择变化
     if (monitorSelect) {
@@ -3168,24 +3173,22 @@ async function initPopupPositionSetting() {
 
     // 重置按钮功能
     resetButton.addEventListener('click', async() => {
-        const defaultX = 80;
-        const defaultY = 500;
-
-        // 更新预览
-        updatePreviewPosition(dragHandle, defaultX, defaultY, previewContainer, selectedMonitor);
-        updatePositionInfo(positionInfo, defaultX, defaultY);
 
         // 重置显示器选择
         let primaryMonitor = null;
         if (monitorSelect) {
-            monitorSelect.value = '';
-
             // 调整预览区域比例为主显示器
-            primaryMonitor = monitors.find(m => m.is_primary) || monitors[0];
+            primaryMonitor = monitors.find(m => m.id === monitorSelect.value) || monitors[0];
             if (primaryMonitor) {
                 adjustPreviewAreaRatio(previewContainer, primaryMonitor);
             }
         }
+        const defaultX = 80;
+        const defaultY = primaryMonitor.height * 0.85;
+
+        // 更新预览
+        updatePreviewPosition(dragHandle, defaultX, defaultY, previewContainer, selectedMonitor);
+        updatePositionInfo(positionInfo, defaultX, defaultY);
 
         // 保存到后端
         try {
@@ -3220,7 +3223,7 @@ function updatePositionInfo(element, x, y) {
 }
 
 // 实现拖拽功能
-function implementDragging(element, infoElement, container, monitorSelect, selectedMonitor) {
+function implementDragging(element, infoElement, container, monitorSelect, monitors) {
     let isDragging = false;
     let offsetX, offsetY;
 
@@ -3260,6 +3263,7 @@ function implementDragging(element, infoElement, container, monitorSelect, selec
         element.style.left = `${newX}px`;
         element.style.top = `${newY}px`;
         element.style.bottom = 'auto'; // 清除底部定位
+        const selectedMonitor = monitors.find(m => m.id === monitorSelect.value) || monitors[0];
         const realPos = calculateRealLocation(newX, newY, container, selectedMonitor);
         // console.log(realPos);
 
@@ -3278,6 +3282,7 @@ function implementDragging(element, infoElement, container, monitorSelect, selec
         const style = window.getComputedStyle(element);
         const x = parseInt(style.left);
         const y = parseInt(style.top);
+        const selectedMonitor = monitors.find(m => m.id === monitorSelect.value) || monitors[0];
         const realPos = calculateRealLocation(x, y, container, selectedMonitor);
         console.log(realPos);
 
