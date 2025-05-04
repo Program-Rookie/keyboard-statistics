@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 外层圆角矩形背景 -->
+  <rect x="112" y="112" width="800" height="800" rx="200" fill="url(#pinkGradient)" />
+  
+  <!-- 内层键盘+图表区域 -->
+  <rect x="192" y="192" width="640" height="640" rx="120" fill="#FFF0F2" filter="url(#dropShadow)" />
+  
+  <!-- 统计图表区域 - 线图 -->
+  <path d="M262 480 L362 380 L462 480 L562 380 L662 300 L762 200" 
+        stroke="#FF4F76" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  
+  <!-- 统计图表 - 条形图 -->
+  <rect x="562" y="500" width="40" height="50" rx="8" fill="url(#barGradient)" />
+  <rect x="622" y="480" width="40" height="70" rx="8" fill="url(#barGradient)" />
+  <rect x="682" y="450" width="40" height="100" rx="8" fill="url(#barGradient)" />
+  <rect x="742" y="400" width="40" height="150" rx="8" fill="url(#barGradient)" />
+  
+  <!-- 键盘按键 - 第一行 -->
+  <rect x="260" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="285" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">Q</text>
+  
+  <rect x="320" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="345" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">W</text>
+  
+  <rect x="380" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="405" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">E</text>
+  
+  <rect x="440" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="465" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">T</text>
+  
+  <rect x="500" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="525" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">Y</text>
+  
+  <rect x="560" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="585" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">J</text>
+  
+  <rect x="620" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="645" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">O</text>
+  
+  <rect x="680" y="600" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="705" y="635" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">P</text>
+  
+  <!-- 键盘按键 - 第二行 -->
+  <rect x="260" y="660" width="80" height="50" rx="10" fill="#666666" stroke="#F0F0F0" stroke-width="1" />
+  <text x="300" y="695" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="white">WASD</text>
+  
+  <rect x="350" y="660" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="375" y="695" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">Z</text>
+  
+  <rect x="410" y="660" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="435" y="695" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">C</text>
+  
+  <rect x="470" y="660" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="495" y="695" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">V</text>
+  
+  <rect x="530" y="660" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="555" y="695" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">K</text>
+  
+  <rect x="590" y="660" width="50" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <text x="615" y="695" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">M</text>
+  
+  <rect x="650" y="660" width="80" height="50" rx="10" fill="#666666" stroke="#F0F0F0" stroke-width="1" />
+  <text x="690" y="695" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="white">⏎</text>
+  
+  <!-- 键盘按键 - 第三行 -->
+  <rect x="260" y="720" width="100" height="50" rx="10" fill="#666666" stroke="#F0F0F0" stroke-width="1" />
+  <text x="310" y="755" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="white">WASAD</text>
+  
+  <rect x="370" y="720" width="280" height="50" rx="10" fill="white" stroke="#F0F0F0" stroke-width="1" />
+  <line x1="510" y1="745" x2="510" y2="745" stroke="#777777" stroke-width="30" stroke-linecap="round" />
+  
+  <rect x="660" y="720" width="70" height="50" rx="10" fill="#666666" stroke="#F0F0F0" stroke-width="1" />
+  <text x="695" y="755" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="white">→</text>
+  
+  <!-- 渐变和滤镜定义 -->
+  <defs>
+    <linearGradient id="pinkGradient" x1="112" y1="112" x2="912" y2="912" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF758C" />
+      <stop offset="100%" stop-color="#FF4F76" />
+    </linearGradient>
+    
+    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#FF758C" />
+      <stop offset="100%" stop-color="#FF4F76" />
+    </linearGradient>
+    
+    <filter id="dropShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="15" flood-opacity="0.2" flood-color="#FF4F76" />
+    </filter>
+  </defs>
+</svg>
