@@ -1614,11 +1614,12 @@ function createTodayHeatmap(container, heatmapData) {
     hourRow.style.paddingLeft = '10px';
     container.appendChild(hourRow);
 
-    // 添加小时标签
-    for (let hour = 0; hour < 24; hour++) {
+    // 添加小时标签 - 每3小时一个刻度
+    for (let hour = 1; hour < 24; hour += 3) {
         const hourLabel = document.createElement('div');
         hourLabel.textContent = `${hour}:00`;
-        hourLabel.style.flex = '1';
+        // 需要span占据3小时的宽度
+        hourLabel.style.flex = '3';
         hourLabel.style.textAlign = 'center';
         hourRow.appendChild(hourLabel);
     }
@@ -1662,7 +1663,6 @@ function createTodayHeatmap(container, heatmapData) {
 
         heatBar.appendChild(cell);
     }
-
 }
 
 // 创建周热力图（按星期和小时）
@@ -1677,8 +1677,8 @@ function createWeekHeatmap(container, heatmapData) {
     headerRow.style.paddingLeft = '50px'; // 为左侧的日期标签留出空间
     container.appendChild(headerRow);
 
-    // 添加小时标签
-    for (let hour = 0; hour < 24; hour += 3) {
+    // 添加小时标签 - 确保对齐
+    for (let hour = 1; hour < 24; hour += 3) {
         const hourLabel = document.createElement('div');
         hourLabel.textContent = `${hour}:00`;
         hourLabel.style.flexBasis = '12.5%';
@@ -1692,8 +1692,8 @@ function createWeekHeatmap(container, heatmapData) {
     mainContent.style.flex = '1';
     container.appendChild(mainContent);
 
-    // 添加日期列
-    const dayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    // 添加日期列 - 从周一开始
+    const dayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
     const dayContainer = document.createElement('div');
     dayContainer.className = 'heatmap-day-labels';
     dayContainer.style.display = 'flex';
@@ -1731,8 +1731,12 @@ function createWeekHeatmap(container, heatmapData) {
     // 确保maxValue不为0，避免除以零
     maxValue = maxValue || 1;
 
-    // SQL的%w从周日0开始，所以我们直接按这个顺序创建UI
-    for (let day = 0; day <= 6; day++) {
+    // SQL的%w从周日0开始，我们转换为从周一1开始
+    // 映射: SQL的0(周日)->我们的6, SQL的1(周一)->我们的0, SQL的2(周二)->我们的1, ...
+    const sqlToDayMap = { 0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5 };
+
+    // 创建7行，从周一到周日
+    for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
         const dayRow = document.createElement('div');
         dayRow.className = 'heatmap-row';
         dayRow.style.display = 'flex';
@@ -1741,10 +1745,14 @@ function createWeekHeatmap(container, heatmapData) {
         dayRow.style.minHeight = '25px'; // 设置最小高度
         heatmapGrid.appendChild(dayRow);
 
+        // 将我们的dayIndex映射回SQL的日期索引
+        // 映射: 0(周一)->SQL的1, 1(周二)->SQL的2, ..., 6(周日)->SQL的0
+        const sqlDayIndex = dayIndex === 6 ? 0 : dayIndex + 1;
+
         // 为每个小时创建一个单元格
         for (let hour = 0; hour < 24; hour++) {
             const hourKey = hour.toString().padStart(2, '0');
-            const key = `d${day}_h${hourKey}`;
+            const key = `d${sqlDayIndex}_h${hourKey}`;
 
             // 获取活动值
             const value = heatmapData[key] || 0;
@@ -1759,7 +1767,7 @@ function createWeekHeatmap(container, heatmapData) {
             cell.style.margin = '0 1px';
             cell.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
             cell.style.borderRadius = '2px';
-            cell.title = `${dayLabels[day]} ${hour}:00 - 活跃度: ${value}`;
+            cell.title = `${dayLabels[dayIndex]} ${hour}:00 - 活跃度: ${value}`;
 
             dayRow.appendChild(cell);
         }
@@ -1775,7 +1783,7 @@ function createMonthHeatmap(container, heatmapData) {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     // 设置容器最小高度，确保足够的显示空间
-    container.style.minHeight = '400px';
+    container.style.minHeight = '500px';
 
     // 创建日期标签行
     const daysRow = document.createElement('div');
@@ -1812,8 +1820,7 @@ function createMonthHeatmap(container, heatmapData) {
     const gridContainer = document.createElement('div');
     gridContainer.style.display = 'flex';
     gridContainer.style.flex = '1';
-    // gridContainer.style.height = '320px'; // 固定高度，确保足够空间
-    gridContainer.style.minHeight = '320px';
+    gridContainer.style.minHeight = '450px';
     container.appendChild(gridContainer);
 
     // 小时标签列
@@ -1823,13 +1830,14 @@ function createMonthHeatmap(container, heatmapData) {
     hoursColumn.style.width = '50px';
     gridContainer.appendChild(hoursColumn);
 
-    for (let hour = 0; hour < 24; hour += 2) {
+    // 每小时显示一个标签（而不是每2小时）
+    for (let hour = 0; hour < 24; hour++) {
         const hourLabel = document.createElement('div');
         hourLabel.textContent = `${hour}:00`;
         hourLabel.style.flex = '1';
         hourLabel.style.textAlign = 'right';
         hourLabel.style.paddingRight = '10px';
-        hourLabel.style.fontSize = '10px';
+        hourLabel.style.fontSize = '9px'; // 字体稍微缩小，因为标签更多了
         hourLabel.style.display = 'flex';
         hourLabel.style.alignItems = 'center';
         hourLabel.style.justifyContent = 'flex-end';
@@ -1847,7 +1855,7 @@ function createMonthHeatmap(container, heatmapData) {
     grid.style.display = 'flex';
     grid.style.flexDirection = 'column';
     grid.style.height = '100%';
-    grid.style.minHeight = '300px'; // 确保最小高度
+    grid.style.minHeight = '450px'; // 确保最小高度
     gridWrapper.appendChild(grid);
 
     // 找出最大值用于计算颜色强度
@@ -1861,12 +1869,12 @@ function createMonthHeatmap(container, heatmapData) {
     // 确保maxValue不为0，避免除以零
     maxValue = maxValue || 1;
 
-    // 为每2小时创建一行
-    for (let hour = 0; hour < 24; hour += 2) {
+    // 为每小时创建一行（而不是每2小时）
+    for (let hour = 0; hour < 24; hour++) {
         const hourRow = document.createElement('div');
         hourRow.style.display = 'flex';
         hourRow.style.flex = '1';
-        hourRow.style.minHeight = '25px'; // 确保行高
+        hourRow.style.minHeight = '16px'; // 减小行高以适应更多行
         grid.appendChild(hourRow);
 
         // 为每一天创建一个单元格
@@ -1921,7 +1929,7 @@ function createAllTimeHeatmap(container, heatmapData) {
     container.appendChild(headerRow);
 
     // 添加小时标签
-    for (let hour = 0; hour < 24; hour += 3) {
+    for (let hour = 1; hour < 24; hour += 3) {
         const hourLabel = document.createElement('div');
         hourLabel.textContent = `${hour}:00`;
         hourLabel.style.flexBasis = '12.5%';
@@ -1935,8 +1943,8 @@ function createAllTimeHeatmap(container, heatmapData) {
     mainContent.style.flex = '1';
     container.appendChild(mainContent);
 
-    // 添加日期列
-    const dayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    // 添加日期列 - 从周一开始
+    const dayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
     const dayContainer = document.createElement('div');
     dayContainer.className = 'heatmap-day-labels';
     dayContainer.style.display = 'flex';
@@ -1974,8 +1982,12 @@ function createAllTimeHeatmap(container, heatmapData) {
     // 确保maxValue不为0，避免除以零
     maxValue = maxValue || 1;
 
-    // SQL的%w从周日0开始，所以我们直接按这个顺序创建UI
-    for (let day = 0; day <= 6; day++) {
+    // SQL的%w从周日0开始，我们转换为从周一1开始
+    // 映射: SQL的0(周日)->我们的6, SQL的1(周一)->我们的0, SQL的2(周二)->我们的1, ...
+    const sqlToDayMap = { 0: 6, 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5 };
+
+    // 创建7行，从周一到周日
+    for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
         const dayRow = document.createElement('div');
         dayRow.className = 'heatmap-row';
         dayRow.style.display = 'flex';
@@ -1984,10 +1996,14 @@ function createAllTimeHeatmap(container, heatmapData) {
         dayRow.style.minHeight = '25px'; // 设置最小高度
         heatmapGrid.appendChild(dayRow);
 
+        // 将我们的dayIndex映射回SQL的日期索引
+        // 映射: 0(周一)->SQL的1, 1(周二)->SQL的2, ..., 6(周日)->SQL的0
+        const sqlDayIndex = dayIndex === 6 ? 0 : dayIndex + 1;
+
         // 为每个小时创建一个单元格
         for (let hour = 0; hour < 24; hour++) {
             const hourKey = hour.toString().padStart(2, '0');
-            const key = `d${day}_h${hourKey}`;
+            const key = `d${sqlDayIndex}_h${hourKey}`;
 
             // 获取活动值
             const value = heatmapData[key] || 0;
@@ -2002,7 +2018,7 @@ function createAllTimeHeatmap(container, heatmapData) {
             cell.style.margin = '0 1px';
             cell.style.backgroundColor = `rgba(40, 167, 69, ${intensity})`; // 使用绿色渐变
             cell.style.borderRadius = '2px';
-            cell.title = `${dayLabels[day]} ${hour}:00 - 活跃度: ${value}`;
+            cell.title = `${dayLabels[dayIndex]} ${hour}:00 - 活跃度: ${value}`;
 
             dayRow.appendChild(cell);
         }
