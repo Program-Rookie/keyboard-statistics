@@ -410,6 +410,49 @@ async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), Strin
                 .map_err(|e| format!("取消自启动失败: {}", e))?;
         }
     }
+
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        let app_path = std::env::current_exe()
+            .map_err(|e| format!("获取应用路径失败: {}", e))?;
+        
+        let app_path_str = app_path.to_string_lossy().to_string();
+        let plist_path = dirs::home_dir()
+            .ok_or_else(|| "无法获取用户主目录".to_string())?
+            .join("Library/LaunchAgents/com.keyboard-statistics.app.plist");
+        
+        if enabled {
+            // 创建 plist 文件内容
+            let plist_content = format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                <plist version="1.0">
+                <dict>
+                    <key>Label</key>
+                    <string>com.keyboard-statistics.app</string>
+                    <key>ProgramArguments</key>
+                    <array>
+                        <string>{}</string>
+                    </array>
+                    <key>RunAtLoad</key>
+                    <true/>
+                </dict>
+                </plist>"#,
+                app_path_str
+            );
+            
+            // 写入 plist 文件
+            std::fs::write(&plist_path, plist_content)
+                .map_err(|e| format!("创建启动项文件失败: {}", e))?;
+        } else {
+            // 删除 plist 文件
+            if plist_path.exists() {
+                std::fs::remove_file(&plist_path)
+                    .map_err(|e| format!("删除启动项文件失败: {}", e))?;
+            }
+        }
+    }
     
     Ok(())
 }

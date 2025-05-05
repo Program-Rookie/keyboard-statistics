@@ -23,6 +23,7 @@
         "active": true,
         "targets": "all",
         "icon": [
+            "icons/icon.ico",
             "icons/icon16.png",
             "icons/icon32.png",
             "icons/icon64.png",
@@ -31,6 +32,14 @@
             "icons/icon512.png",
             "icons/icon1024.png",
             "icons/app-icon.svg"
-        ]
+        ],
+        "macOS": {
+            "frameworks": [],
+            "minimumSystemVersion": "10.13",
+            "exceptionDomain": "",
+            "signingIdentity": null,
+            "providerShortName": null,
+            "entitlements": null
+        }
     }
 }
