@@ -36,16 +36,27 @@ jobs:
           rustup target add x86_64-apple-darwin
           rustup target add aarch64-apple-darwin
           
-      - name: Check icon files
+      - name: Check icon files (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
         run: |
-          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
-            if [ ! -f "src-tauri/icons/icon.ico" ]; then
-              echo "icon.ico file is missing!"
-              exit 1
-            else
-              echo "icon.ico file exists."
-              ls -la src-tauri/icons/
-            fi
+          if (Test-Path "src-tauri/icons/icon.ico") {
+            Write-Host "icon.ico file exists."
+            Get-ChildItem -Path "src-tauri/icons" -Force
+          } else {
+            Write-Host "icon.ico file is missing!" -ForegroundColor Red
+            [System.Environment]::Exit(1)
+          }
+          
+      - name: Check icon files (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          if [ -f "src-tauri/icons/icon.ico" ]; then
+            echo "icon.ico file exists."
+            ls -la src-tauri/icons/
+          else
+            echo "icon.ico file is missing!"
+            exit 1
           fi
 
       - name: Build Tauri App
@@ -58,3 +69,4 @@ jobs:
           releaseBody: '请查看 GitHub releases 页面查看更新内容。'
           releaseDraft: true
           prerelease: false
+          iconPath: src-tauri/icons/icon.ico
