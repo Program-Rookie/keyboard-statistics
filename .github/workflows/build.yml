@@ -35,6 +35,18 @@ jobs:
           npm install
           rustup target add x86_64-apple-darwin
           rustup target add aarch64-apple-darwin
+          
+      - name: Check icon files
+        run: |
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            if [ ! -f "src-tauri/icons/icon.ico" ]; then
+              echo "icon.ico file is missing!"
+              exit 1
+            else
+              echo "icon.ico file exists."
+              ls -la src-tauri/icons/
+            fi
+          fi
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0

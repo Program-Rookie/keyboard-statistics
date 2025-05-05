@@ -23,15 +23,15 @@
         "active": true,
         "targets": "all",
         "icon": [
-            "icons/icon.ico",
-            "icons/icon16.png",
-            "icons/icon32.png",
-            "icons/icon64.png",
-            "icons/icon128.png",
-            "icons/icon256.png",
-            "icons/icon512.png",
-            "icons/icon1024.png",
-            "icons/app-icon.svg"
+            "./icons/icon.ico",
+            "./icons/icon16.png",
+            "./icons/icon32.png",
+            "./icons/icon64.png",
+            "./icons/icon128.png",
+            "./icons/icon256.png",
+            "./icons/icon512.png",
+            "./icons/icon1024.png",
+            "./icons/app-icon.svg"
         ],
         "macOS": {
             "frameworks": [],
