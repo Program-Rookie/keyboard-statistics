@@ -12,6 +12,29 @@ let isDarkTheme = false;
 let showExitConfirm = true; // 默认显示退出确认
 const appWindow = getCurrentWindow();
 
+// 安全地获取当前显示器信息的包装函数
+async function safeGetCurrentMonitor() {
+    try {
+        const monitor = await currentMonitor();
+        if (monitor && monitor.width && monitor.height) {
+            return monitor;
+        }
+        console.warn('获取到的显示器信息不完整，使用默认值');
+    } catch (error) {
+        console.error('获取当前显示器信息失败:', error);
+    }
+
+    // 返回默认显示器信息
+    return {
+        width: 1920,
+        height: 1080,
+        position_x: 0,
+        position_y: 0,
+        name: '默认显示器',
+        is_primary: true
+    };
+}
+
 // 页面初始化
 window.addEventListener("DOMContentLoaded", async() => {
     // 初始化导航事件
@@ -92,17 +115,24 @@ async function createOverlayWindow() {
 
         // 如果没有指定或没找到，使用当前显示器
         if (!targetMonitor) {
-            targetMonitor = await currentMonitor();
+            targetMonitor = await safeGetCurrentMonitor();
         }
     } catch (error) {
         console.error('获取显示器信息失败:', error);
         // 出错时使用当前显示器
-        targetMonitor = await currentMonitor();
+        targetMonitor = await safeGetCurrentMonitor();
     }
 
     if (!targetMonitor) {
         console.error('无法获取有效的显示器信息');
-        return;
+        // 使用默认显示器信息继续执行
+        targetMonitor = {
+            width: 1920,
+            height: 1080,
+            position_x: 0,
+            position_y: 0
+        };
+        Logger.warning(Logger.LogSource.MAIN, "无法获取有效的显示器信息，使用默认值");
     }
 
     console.log('使用显示器:', targetMonitor);
@@ -112,7 +142,7 @@ async function createOverlayWindow() {
     const winWidth = idealSize.width;
     const winHeight = idealSize.height;
 
-    if (!popupX || !popupY) {
+    if (popupX == null || popupY == null) {
         popupX = 80;
         popupY = targetMonitor.height * 0.80;
     }
@@ -124,7 +154,11 @@ async function createOverlayWindow() {
     const globalX = targetMonitor.position_x + safeX;
     const globalY = targetMonitor.position_y + safeY;
 
-    console.log(`弹窗位置: 显示器=${targetMonitor.width}×${targetMonitor.height}, 局部坐标=(x=${safeX}, y=${safeY}), 全局坐标=(x=${globalX}, y=${globalY})`);
+    // 确保坐标是有效数值
+    const validX = Number.isFinite(globalX) ? globalX : 0;
+    const validY = Number.isFinite(globalY) ? globalY : 0;
+
+    console.log(`弹窗位置: 显示器=${targetMonitor.width}×${targetMonitor.height}, 局部坐标=(x=${safeX}, y=${safeY}), 全局坐标=(x=${validX}, y=${validY})`);
 
     try {
         // 创建窗口
@@ -137,8 +171,8 @@ async function createOverlayWindow() {
             resizable: true,
             width: winWidth,
             height: winHeight,
-            x: globalX,
-            y: globalY,
+            x: validX, // 使用验证过的坐标
+            y: validY, // 使用验证过的坐标
             visible: false,
             focus: false,
             theme: 'dark',
@@ -165,26 +199,49 @@ async function createOverlayWindow() {
 
 // 根据显示器尺寸计算弹窗窗口大小
 function windowSizeForMonitor(monitor) {
-    // 获取显示器尺寸
-    const monitorWidth = monitor.width;
-    const monitorHeight = monitor.height;
+    try {
+        // 获取显示器尺寸，添加默认值防止undefined
+        const monitorWidth = monitor && monitor.width ? monitor.width : 1920;
+        const monitorHeight = monitor && monitor.height ? monitor.height : 1080;
 
-    // 计算弹窗窗口大小（根据显示器尺寸的比例）
-    // 宽度为显示器宽度的15%，最小200px
-    const width = Math.max(380, Math.round(monitorWidth * 0.15));
-    const height = Math.max(386, Math.round(monitorHeight * 0.2));
+        // 计算弹窗窗口大小（根据显示器尺寸的比例）
+        // 宽度为显示器宽度的15%，最小200px
+        const width = Math.max(380, Math.round(monitorWidth * 0.15));
+        const height = Math.max(386, Math.round(monitorHeight * 0.2));
 
-    console.log(`计算弹窗尺寸: 显示器=${monitorWidth}×${monitorHeight}, 弹窗=${width}×${height}`);
-
-    return {
-        width,
-        height
-    };
+        console.log(`计算弹窗尺寸: 显示器=${monitorWidth}×${monitorHeight}, 弹窗=${width}×${height}`);
+        Logger.info(Logger.LogSource.MAIN, `计算弹窗尺寸: 显示器=${monitorWidth}×${monitorHeight}, 弹窗=${width}×${height}`);
+        return {
+            width,
+            height
+        };
+    } catch (error) {
+        console.error('计算弹窗尺寸时出错:', error);
+        Logger.error(Logger.LogSource.MAIN, `计算弹窗尺寸时出错: ${error}`);
+        // 返回默认尺寸
+        return {
+            width: 380,
+            height: 386
+        };
+    }
 }
 
 // 根据显示器尺寸调整预览区域比例
 function adjustPreviewAreaRatio(previewContainer, monitor, forceRecalculate = false) {
-    if (!previewContainer || !monitor) return;
+    if (!previewContainer || !monitor) {
+        console.error('调整预览区域比例失败: 容器或显示器为空');
+        return;
+    }
+
+    // 确保monitor有有效的宽高
+    if (!monitor.width || !monitor.height) {
+        console.error('显示器缺少有效的宽高信息');
+        monitor = {
+            ...monitor,
+            width: monitor.width || 1920,
+            height: monitor.height || 1080
+        };
+    }
 
     // 计算显示器宽高比
     const monitorRatio = monitor.height / monitor.width;
@@ -3402,11 +3459,24 @@ function implementDragging(element, infoElement, container, monitorSelect, monit
 }
 
 function calculateRealLocation(x, y, container, monitor) {
+    // 添加参数验证
+    if (!container || !monitor) {
+        console.error('容器或显示器未定义');
+        return { realX: 80, realY: 600 }; // 返回默认值
+    }
+
+    // 确保有效参数
+    const validX = Number.isFinite(x) ? x : 0;
+    const validY = Number.isFinite(y) ? y : 0;
+    const monitorWidth = monitor.width || 1920;
+    const monitorHeight = monitor.height || 1080;
+
     // 根据x，y的相对popup-preview-container高度宽度百分比以及monitor的宽高计算实际的x,y坐标
-    const height = container.offsetHeight;
-    const width = container.offsetWidth;
-    const realX = Math.round(x * monitor.width * 1.0 / width);
-    const realY = Math.round(y * monitor.height * 1.0 / height);
+    const height = container.offsetHeight || 1;
+    const width = container.offsetWidth || 1;
+    const realX = Math.round(validX * monitorWidth * 1.0 / width);
+    const realY = Math.round(validY * monitorHeight * 1.0 / height);
+
     // console.log(`${realX}-${realY}`);
     return { realX, realY };
 }
@@ -3417,6 +3487,12 @@ function calculateRelativeLocation(realX, realY, container, monitor) {
         console.error('容器或显示器未定义');
         return { x: 0, y: 0 };
     }
+
+    // 确保有效数值
+    const validRealX = Number.isFinite(realX) ? realX : 0;
+    const validRealY = Number.isFinite(realY) ? realY : 0;
+    const monitorWidth = monitor.width || 1920;
+    const monitorHeight = monitor.height || 1080;
 
     // 获取容器的尺寸
     const containerRect = container.getBoundingClientRect();
@@ -3446,15 +3522,15 @@ function calculateRelativeLocation(realX, realY, container, monitor) {
         // 计算容器宽度（页面宽度的80%）
         width = pageWidth * 0.8;
         // 根据显示器宽高比计算高度
-        const monitorRatio = monitor.height / monitor.width;
+        const monitorRatio = monitorHeight / monitorWidth;
         height = width * monitorRatio;
     }
 
     // 计算相对位置
-    const x = Math.round(realX * width / monitor.width);
-    const y = Math.round(realY * height / monitor.height);
+    const x = Math.round(validRealX * width / monitorWidth);
+    const y = Math.round(validRealY * height / monitorHeight);
 
-    // console.log(`计算相对位置: 真实坐标=(${realX}, ${realY}), 容器尺寸=${width}×${height}, 相对坐标=(${x}, ${y})`);
+    // console.log(`计算相对位置: 真实坐标=(${validRealX}, ${validRealY}), 容器尺寸=${width}×${height}, 相对坐标=(${x}, ${y})`);
 
     return { x, y };
 }
