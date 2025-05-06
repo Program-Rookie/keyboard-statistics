@@ -5,6 +5,7 @@ pub mod keyboard;
 pub mod database;
 mod tray;
 mod config;
+mod logger;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::path::PathBuf;
@@ -16,6 +17,7 @@ use chrono::{Local, Duration, TimeZone};
 use tauri::{WindowEvent, Manager};
 use crate::keyboard::KeyboardMonitor;
 use crate::config::ConfigManager;
+use crate::logger::{Logger, LogLevel};
 use tauri_plugin_dialog::DialogExt;
 use tauri::Emitter;
 use serde_json;
@@ -600,6 +602,43 @@ fn id_or_default(id: Option<&str>) -> &str {
     id.unwrap_or("主显示器")
 }
 
+// 获取日志目录路径
+#[tauri::command]
+fn get_log_directory(app: tauri::AppHandle) -> Result<String, String> {
+    let log_dir = app.path().app_data_dir()
+        .map_err(|e| format!("无法获取应用数据目录: {}", e))?
+        .join("logs");
+    
+    Ok(log_dir.to_string_lossy().to_string())
+}
+
+// 发送init事件到key_popup窗口
+#[tauri::command]
+fn send_init_event(app: tauri::AppHandle) -> Result<(), String> {
+    // 先记录一条日志
+    let _ = Logger::info("main", "正在发送初始化事件到key_popup窗口");
+    
+    if let Some(window) = app.get_webview_window("key_popup") {
+        let payload = KeyInitPayload {
+            message: "init".to_string(),
+        };
+        if let Err(e) = window.emit("key-init", payload) {
+            Logger::error("main", &format!("发送初始化事件失败: {}", e)).ok();
+            return Err(format!("发送初始化事件失败: {}", e));
+        }
+        Logger::info("main", "初始化事件发送成功").ok();
+    } else {
+        Logger::warning("main", "未找到key_popup窗口，无法发送初始化事件").ok();
+    }
+    Ok(())
+}
+
+// 键盘初始化事件的载荷
+#[derive(Clone, serde::Serialize)]
+struct KeyInitPayload {
+    message: String,
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -608,6 +647,16 @@ fn main() {
             let app_dir = app.path().app_data_dir().expect("无法获取应用数据目录");
             println!("应用数据目录: {:?}", app_dir);
             std::fs::create_dir_all(&app_dir).expect("无法创建应用数据目录");
+            
+            // 初始化日志系统
+            let log_dir = app_dir.join("logs");
+            if let Err(e) = Logger::init(log_dir, LogLevel::Debug) {
+                println!("初始化日志系统失败: {}", e);
+            }
+            
+            // 记录应用启动日志
+            let _ = Logger::info("main", "应用启动");
+            
             let app_state = AppState::new(app_dir);
             // 根据配置决定是否启动监听器
             {
@@ -615,14 +664,23 @@ fn main() {
                 let mut monitor = app_state.keyboard_monitor.lock().unwrap();
                 monitor.set_app_handle(app.handle().clone());
                 if config.recording_enabled {
-                    monitor.start().unwrap();
+                    if let Err(e) = monitor.start() {
+                        let _ = Logger::error("main", &format!("启动键盘监听器失败: {}", e));
+                    } else {
+                        let _ = Logger::info("main", "键盘监听器已启动");
+                    }
                 } else {
                     monitor.stop();
+                    let _ = Logger::info("main", "键盘监听器已停止");
                 }
             }
             app.manage(app_state);
             // 创建托盘图标
-            tray::setup_tray(app)?;
+            if let Err(e) = tray::setup_tray(app) {
+                let _ = Logger::error("main", &format!("设置托盘图标失败: {}", e));
+                return Err(e);
+            }
+            let _ = Logger::info("main", "托盘图标已设置");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -649,6 +707,11 @@ fn main() {
             get_popup_position,
             get_all_monitors,
             set_popup_position,
+            // 日志相关命令
+            logger::log_message,
+            get_log_directory,
+            // key_popup初始化事件命令
+            send_init_event,
         ])
         .on_window_event(|app, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
@@ -659,22 +722,42 @@ fn main() {
                 let state = app_handle.state::<AppState>();
                 let config = state.config_manager.get_config();
                 let show_confirm = config.show_exit_confirm;
-                println!("{:?}", show_confirm);
                 let minimize_on_close = config.minimize_on_close;
+                
+                let _ = Logger::info("main", &format!("收到关闭请求，show_confirm={}, minimize_on_close={}", show_confirm, minimize_on_close));
                 
                 if show_confirm {
                     api.prevent_close();
-                    app.emit("show-close-dialog", ()).unwrap();
+                    if let Err(e) = app.emit("show-close-dialog", ()) {
+                        let _ = Logger::error("main", &format!("发送关闭对话框事件失败: {}", e));
+                    }
                 } else {
                     // 根据保存的行为决定是最小化还是退出
                     if minimize_on_close {
                         api.prevent_close();
-                        let _ = window.hide();
+                        if let Err(e) = window.hide() {
+                            let _ = Logger::error("main", &format!("隐藏窗口失败: {}", e));
+                        } else {
+                            let _ = Logger::info("main", "窗口已隐藏");
+                        }
+                    } else {
+                        // 如果minimize_on_close为false，在退出前记录日志
+                        let _ = Logger::info("main", "应用即将退出");
+                        let _ = logger::shutdown();
                     }
-                    // 如果 minimize_on_close 为 false，则允许窗口关闭，应用退出
                 }
             }
         })
-        .run(tauri::generate_context!())
-        .expect("启动失败");
+        .build(tauri::generate_context!())
+        .expect("启动失败")
+        .run(|_app_handle, event| {
+            match event {
+                tauri::RunEvent::Exit => {
+                    // 应用退出时确保日志写入
+                    let _ = Logger::info("main", "应用接收到退出事件");
+                    let _ = logger::shutdown();
+                }
+                _ => {}
+            }
+        });
 }

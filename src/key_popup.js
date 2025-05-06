@@ -1,5 +1,6 @@
 const { listen } = window.__TAURI__.event;
 const { WebviewWindow } = window.__TAURI__.webviewWindow;
+import Logger from './lib/logger.js';
 const popupContainer = document.getElementById('popup-container');
 // 获取当前窗口
 const currentWindow = WebviewWindow.getByLabel('key_popup');
@@ -41,45 +42,6 @@ function getKeyClass(keyCode) {
     return '';
 }
 
-// 平滑隐藏窗口函数 - 仅在有弹窗时使用
-function smoothHideWindow() {
-    // 获取所有当前显示的弹窗
-    const popups = popupContainer.querySelectorAll('.popup');
-
-    // 如果没有弹窗，直接隐藏窗口
-    if (popups.length === 0) {
-        currentWindow.then((window) => {
-            if (window) {
-                window.hide();
-                isWindowVisible = false;
-                keyCounter = 0;
-            }
-        });
-        return;
-    }
-
-    // 延迟后隐藏窗口
-    setTimeout(() => {
-        currentWindow.then((window) => {
-            if (window) {
-                window.hide();
-                isWindowVisible = false;
-                keyCounter = 0;
-
-                // 清空弹窗容器
-                while (popupContainer.firstChild) {
-                    try {
-                        popupContainer.removeChild(popupContainer.firstChild);
-                    } catch (e) {
-                        console.error('清空弹窗容器失败:', e);
-                        break; // 避免无限循环
-                    }
-                }
-            }
-        });
-    }, 350); // 给动画留出足够时间
-}
-
 // 计算透明度函数
 function calculateOpacity(count) {
     // 随着按键计数增加，透明度从1.0逐渐降低到0.4
@@ -109,6 +71,7 @@ function updateAllPopupsOpacity() {
 }
 
 listen('key-pressed', event => {
+    Logger.info(Logger.LogSource.KEY_POPUP, "按键事件触发");
     // 更新按键计数器
     keyCounter++;
 
@@ -285,4 +248,5 @@ function checkWindowVisibility() {
 checkWindowVisibility();
 
 // 添加调试代码，确认脚本已加载
-console.log('key_popup.js 已加载，小红书风格动画优化版（带透明度渐变）');
+console.log('key_popup.js 已加载');
+Logger.info(Logger.LogSource.KEY_POPUP, "key_popup.js 已加载");

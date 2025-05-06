@@ -1,6 +1,8 @@
 const { invoke } = window.__TAURI__.core;
 const { getCurrentWindow, currentMonitor } = window.__TAURI__.window;
 const { WebviewWindow } = window.__TAURI__.webviewWindow;
+// 使用require导入日志工具
+import Logger from './lib/logger.js';
 
 // 全局变量
 let currentPage = 'dashboard';
@@ -59,6 +61,7 @@ window.addEventListener("DOMContentLoaded", async() => {
 // 初始化overlay窗口
 async function createOverlayWindow() {
     console.log('尝试创建overlay窗口');
+    Logger.info(Logger.LogSource.MAIN, "尝试创建overlay窗口");
 
     // 获取保存的位置设置
     let popupX = null;
@@ -145,12 +148,18 @@ async function createOverlayWindow() {
 
         popup.once('tauri://created', function() {
             console.log('webview 已成功创建');
+            Logger.info(Logger.LogSource.MAIN, "webview 已成功创建");
             popup.setBackgroundColor({ r: 0, g: 0, b: 0, a: 0 });
             // 设置窗口忽略鼠标事件，允许点击穿透
             popup.setIgnoreCursorEvents(true);
         });
+        popup.once('tauri://error', function(error) {
+            console.error('创建webview窗口失败:', error);
+            Logger.error(Logger.LogSource.MAIN, "创建webview窗口失败:" + error.payload);
+        });
     } catch (error) {
         console.error('创建webview窗口失败:', error);
+        Logger.error(Logger.LogSource.MAIN, "创建webview窗口失败:" + error.payload);
     }
 }
 
